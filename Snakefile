@@ -56,7 +56,7 @@ rule all:
     expand('Sample_{s}/{s}_stats_map.qcML', s = all_sampleids), # mapping_qc
     expand('Sample_{s}/{s}.mosdepth.summary.txt', s = all_sampleids), # coverage depth qc
     expand('Sample_{s}/virus/{s}.vcf.gz', s = all_sampleids), # variant calling
-    expand('Sample_{s}/{s}_consensus.fasta', s = all_sampleids),  # consensus
+    expand('Sample_{s}/{s}_consensus.fa', s = all_sampleids),  # consensus
     #expand('Sample_{s}/quast_results', s = all_sampleids), # assembly 
     expand('Sample_{s}/{s}.variants.txt', s = all_sampleids), # variants.txt
 
@@ -228,18 +228,18 @@ rule variant_qc:
 
 rule consensus:
   input:
-    vcf = 'Sample_{s}/virus/{s}.vcf.gz',
-    ref = ref_path
+    vcf = 'Sample_{s}/virus/{s}_position_sorted.bam',
   output:
-    fasta = 'Sample_{s}/{s}_consensus.fasta'
-  conda: 'envs/env.yaml'
+    fasta = 'Sample_{s}/{s}_consensus.fa'
+  conda: 'envs/env_ivar.yaml'
+  params:
+    min_depth = 10,
+    freq_threshold = 0.9
   shell:
     """
-    mkdir -p Sample_{wildcards.s}/consensus
-    bcftools norm -f {input.ref} {input.vcf} -Oz -o Sample_{wildcards.s}/consensus/calls.norm.vcf.gz
-    bcftools filter --IndelGap 5 Sample_{wildcards.s}/consensus/calls.norm.vcf.gz -Oz -o Sample_{wildcards.s}/consensus/calls.filt.vcf.gz
-    tabix Sample_{wildcards.s}/consensus/calls.filt.vcf.gz
-    cat {input.ref} | bcftools consensus Sample_{wildcards.s}/consensus/calls.filt.vcf.gz > {output.fasta}
+    samtools mpileup -aa -A -d 0 -Q 0 {input} | \
+        ivar consensus -t {params.freq_threshold} -m {params.min_depth} \
+        -p Sample_{wildcards.s}/{wildcards.s}_consensus
     """
 
 rule variant_table:
