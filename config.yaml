@@ -1,0 +1,67 @@
+data_files:
+  - "B2_samples.csv"
+
+project_prefix:
+    '/mnt/projects/research'
+fasta_filename_template:
+    'Sample_{sample}/{sample}_consensus.fa'
+
+filename_gisaid_metadata:
+    "{batch}_gisaid_meta.csv"
+
+filename_nextstrain_metadata:
+    "{batch}_nextstrain_meta.tsv"
+
+gisaid_metadata:
+  submitter: "caspar.gross@med.uni-tuebingen.de"
+  fn: "hCov19_UKT_{batch}.fasta"
+  covv_virus_name: "hCov-19/Germany/BW-UKT-{sample}/{year}"
+  covv_type: "betacoronavirus"
+  covv_passage: "Original"
+  covv_collection_date: "{year}-{month}-{day}"
+  covv_location: "Europe/Germany/Baden-Württemberg"
+  covv_add_location:
+  covv_host: "Human"
+  covv_add_host_info:
+  covv_gender: "unknown"
+  covv_patient_age: "unknown"
+  covv_patient_status: "unknown"
+  covv_specimen: 
+  covv_outbreak:
+  covv_last_vaccinated: 
+  covv_treatment: 
+  covv_seq_technology: "Illumina NextSeq Twist"
+  covv_assembly_method:
+  covv_coverage: 
+  covv_orig_lab: "Institute of Medical Genetics and Applied Genomics"
+  covv_orig_lab_addr: "Calwerstr. 7 72076 Tübingen"
+  covv_provider_sample_id:
+  covv_subm_lab: "Institute of Medical Genetics and Applied Genomics"
+  covv_subm_lab_addr: "Calwerstr. 7 72076 Tübingen"
+  covv_subm_sample_id: 
+  covv_authors: "\\\"Caspar Gross, Tina Ganzenmüller, Siri Göpel, Michaela Pogoda, Daniela Bezdan, Michael Sonnabend, Angel Angelov, Nicolas Casadei, Stephan Ossowski, Thomas Iftner, Michael Bitzer \\\""
+
+nextstrain_metadata:
+  strain: "hCov-19/Germany/BW-UKT-{sample}/{year}"
+  virus: "ncov"
+  gisaid_epi_isl:
+  genbank_accession:
+  date: "{year}-{month}-{day}"
+  region: "Europe"
+  country: "Germany"
+  division: "Baden-Württemberg"
+  location:
+  region_exposure:
+  country_exposure:
+  division_exposure:
+  segment:
+  length:
+  host: "human"
+  age: "unknown"
+  sex: "unknown"
+  originating_lab: "Institute of Medical Genetics and Applied Genomics, Calwerstr. 7 72076 Tübingen"
+  submitting_lab: "Institute of Medical Genetics and Applied Genomics, Calwerstr. 7 72076 Tübingen"
+  authors: "\\\"Caspar Gross, Tina Ganzenmüller, Siri Göpel, Michaela Pogoda, Daniela Bezdan, Michael Sonnabend, Angel Angelov, Nicolas Casadei, Stephan Ossowski, Thomas Iftner, Michael Bitzer \\\""
+  url:
+  title:
+  date_submitted: "{today}"
