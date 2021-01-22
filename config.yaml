@@ -65,3 +65,11 @@ nextstrain_metadata:
   url:
   title:
   date_submitted: "{today}"
+
+samples: '20076a112_01'
+target_twist: '/mnt/projects/research/20076C_0503_Virologie_HT/twist_sars_cov2.bed'
+reference: '/mnt/projects/research/20076C_0503_Virologie_HT/ref/MN908947.3.fasta'
+adapter1: 'AGATCGGAAGAGCACACGTCTGAACTCCAGTCA'
+adapter2: 'AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT'
+krakendb: '/mnt/users/ahkocae1/tools/kraken2/kraken2_human'
+threads: 4
