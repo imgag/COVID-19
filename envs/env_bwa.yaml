@@ -4,3 +4,5 @@ channels:
   - defaults
 dependencies:
   - bwa ==0.7.17
+  - samblaster ==0.1.26
+  - samtools ==1.11 

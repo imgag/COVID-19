@@ -132,7 +132,6 @@ rule index:
     output:
         position_sorted_idx = 'Sample_{s}/virus/{s}_position_sorted.bam.bai'
     conda: 'envs/env_samtools.yaml'
-    threads: threads_max
     shell:
         "samtools index {input.position_sorted_bam}"	
 
