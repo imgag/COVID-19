@@ -8,13 +8,16 @@ def get_samples():
     return [item.strip() for item in config["samples"].split(",")]
 
 def get_fastqs_by_R1(wildcards):
-    return glob.glob("%s/Sample_%s/%s*R1*.fastq.gz"%(os.getcwd(),wildcards.s,wildcards.s))
+    fastqs = glob.glob("Sample_%s/%s*R1*.fastq.gz"%(wildcards.s,wildcards.s))
+    return sorted(fastqs,key=lambda x: x)
     
 def get_fastqs_by_R2(wildcards):
-    return glob.glob("%s/Sample_%s/%s*R2*.fastq.gz"%(os.getcwd(),wildcards.s,wildcards.s))
+    fastqs = glob.glob("Sample_%s/%s*R2*.fastq.gz"%(wildcards.s,wildcards.s))
+    return sorted(fastqs,key=lambda x: x)
 
 def get_fastqs_by_index(wildcards):
-    return glob.glob("%s/Sample_%s/%s*index*.fastq.gz"%(os.getcwd(),wildcards.s,wildcards.s))
+    fastqs = glob.glob("Sample_%s/%s*index*.fastq.gz"%(wildcards.s,wildcards.s))
+    return sorted(fastqs,key=lambda x: x)
 
 all_sampleids = get_samples()
 threads_max = config['threads']
@@ -36,8 +39,8 @@ rule all:
 #### KRAKEN ####
 rule kraken:
     input:
-        in1='Sample_{s}/{s}_R1_deduplicated.fastq.gz',
-        in2='Sample_{s}/{s}_R1_deduplicated.fastq.gz'
+        in1='Sample_{s}/temp/{s}_R1_deduplicated.fastq.gz',
+        in2='Sample_{s}/temp/{s}_R2_deduplicated.fastq.gz'
     output:
         out1='Sample_{s}/{s}_kraken_1.fastq.gz',
         out2='Sample_{s}/{s}_kraken_2.fastq.gz',
@@ -60,8 +63,8 @@ rule add_barcode:
         in2=get_fastqs_by_R2,
         barcode=get_fastqs_by_index
     output:
-        out1='Sample_{s}/{s}_R1_barcode_added.fastq.gz',
-        out2='Sample_{s}/{s}_R2_barcode_added.fastq.gz'
+        out1='Sample_{s}/temp/{s}_R1_barcode_added.fastq.gz',
+        out2='Sample_{s}/temp/{s}_R2_barcode_added.fastq.gz'
     conda: 'envs/env_ngs_bits.yaml'
     shell:
         """
@@ -72,11 +75,11 @@ rule add_barcode:
 
 rule trimming:
     input:
-        in1='Sample_{s}/{s}_R1_barcode_added.fastq.gz',
-        in2='Sample_{s}/{s}_R2_barcode_added.fastq.gz'
+        in1='Sample_{s}/temp/{s}_R1_barcode_added.fastq.gz',
+        in2='Sample_{s}/temp/{s}_R2_barcode_added.fastq.gz'
     output:
-        out1='Sample_{s}/{s}_R1_trimmed.fastq.gz',
-        out2='Sample_{s}/{s}_R2_trimmed.fastq.gz',
+        out1='Sample_{s}/temp/{s}_R1_trimmed.fastq.gz',
+        out2='Sample_{s}/temp/{s}_R2_trimmed.fastq.gz',
         qc= 'Sample_{s}/{s}_stats_fastq.qcML'
     threads: 
         threads_max
@@ -159,8 +162,8 @@ rule index:
 
 rule mapping_for_deduplicate:
   input: 
-     r1='Sample_{s}/{s}_R1_trimmed.fastq.gz',
-     r2='Sample_{s}/{s}_R2_trimmed.fastq.gz',
+     r1='Sample_{s}/temp/{s}_R1_trimmed.fastq.gz',
+     r2='Sample_{s}/temp/{s}_R2_trimmed.fastq.gz',
      ref= config['reference'] 
   output:
     bam = 'Sample_{s}/dedup/{s}_dedup_unsorted.bam'
@@ -197,7 +200,7 @@ rule barcode_correction:
        corrected_bam = 'Sample_{s}/dedup/{s}_corrected.bam'
    shell:
        """
-       python3 ../../source/barcode_correction.py --infile {input.position_sorted_bam} --outfile {output.corrected_bam}
+       python2 source/barcode_correction.py --infile {input.position_sorted_bam} --outfile {output.corrected_bam}
        """
 
 rule sort_by_position_after_correction:
@@ -213,7 +216,7 @@ rule index_after_correction:
     input: 
         corrected_sorted_bam = 'Sample_{s}/dedup/{s}_corrected_sorted.bam'
     output:
-        corredcted_sorted_idx = 'Sample_{s}/dedup/{s}_corrected_sorted.bam.bai'
+        'Sample_{s}/dedup/{s}_corrected_sorted.bam.bai'
     conda: 'envs/env_samtools.yaml'
     shell:
         "samtools index {input.corrected_sorted_bam}"	
@@ -257,8 +260,8 @@ rule extract_reads:
        bamclipoverlap_sorted_bam = 'Sample_{s}/dedup/{s}_bamclipoverlap_sorted.bam',
        bamclipoverlap_sorted_idx = 'Sample_{s}/dedup/{s}_bamclipoverlap_sorted.bam.bai'
     output:
-       r1 = 'Sample_{s}/{s}_R1_deduplicated.fastq.gz',
-       r2 = 'Sample_{s}/{s}_R2_deduplicated.fastq.gz'
+       r1 = 'Sample_{s}/temp/{s}_R1_deduplicated.fastq.gz',
+       r2 = 'Sample_{s}/temp/{s}_R2_deduplicated.fastq.gz'
     conda: 'envs/env_ngs_bits.yaml'
     shell: 
        """
