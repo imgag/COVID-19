@@ -30,6 +30,22 @@ rule all:
     expand('Sample_{s}/quast_results', s = all_sampleids), # assembly 
     expand('Sample_{s}/virus/{s}.variants.txt', s = all_sampleids), # variants.txt
 
+#### INDEX REFERENCE ####
+rule index_reference:
+  input: 
+     ref= config['reference'] 
+  output:
+    amb = '%s.amb'%config['reference'],
+    ann = '%s.ann'%config['reference'],
+    bwt = '%s.bwt'%config['reference'],
+    pac = '%s.pac'%config['reference'],
+    sa = '%s.sa'%config['reference']
+  conda: 'envs/env_bwa.yaml'
+  shell:
+    """
+    bwa index {input.ref}
+    """
+
 #### KRAKEN ####
 rule kraken:
     input:
@@ -75,15 +91,16 @@ rule mapping:
   input: 
      r1='Sample_{s}/{s}_kraken_1.fastq.gz',
      r2='Sample_{s}/{s}_kraken_2.fastq.gz',
-     ref= config['reference'] 
+	 index_files = rules.index_reference.output
+  params:
+     ref= config['reference']  
   output:
     bam = 'Sample_{s}/virus/{s}_unsorted.bam'
   threads: threads_max
   conda: 'envs/env_bwa.yaml'
   shell:
     """
-    bwa index {input.ref}
-    bwa mem -t {threads} {input.ref} {input.r1} {input.r2} -M | samtools view -bS - > Sample_{wildcards.s}/virus/{wildcards.s}_unsorted.bam
+    bwa mem -t {threads} {params.ref} {input.r1} {input.r2} -M | samtools view -bS - > Sample_{wildcards.s}/virus/{wildcards.s}_unsorted.bam
     """
 		
 rule mapping_qc:
@@ -151,10 +168,11 @@ rule assembly:
 rule quast:
     input:
         contigs = rules.assembly.output, 
-        ref = config['reference'] 
+    params:
+		ref = config['reference'] 
     output:directory('Sample_{s}/quast_results')
     conda: 'envs/env_quast.yaml'
-    shell:"quast -o {output} -r {input.ref} {input.contigs}"
+    shell:"quast -o {output} -r {params.ref} {input.contigs}"
 
 #### VARIANT CALLING ####
 
@@ -162,6 +180,7 @@ rule variant_calling:
   input:
     bam = 'Sample_{s}/virus/{s}_position_sorted.bam',
     idx = 'Sample_{s}/virus/{s}_position_sorted.bam.bai',
+  params:
     ref = config['reference'] 
   output:
     vcf = 'Sample_{s}/virus/{s}.vcf.gz'

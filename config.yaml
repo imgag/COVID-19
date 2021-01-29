@@ -66,10 +66,11 @@ nextstrain_metadata:
   title:
   date_submitted: "{today}"
 
-samples: '20076a151_01' # list of samples without the prefix "Sample_"
+samples: '20076a136_01' # list of samples without the prefix "Sample_"
 target_twist: '/mnt/projects/research/20076C_0503_Virologie_HT/twist_sars_cov2.bed' # e.g: /root/[PROJECT_NAME]/twist_sars_cov2.bed
-reference: '/mnt/projects/research/20076C_0503_Virologie_HT/ref/MN908947.3.fasta' # e.g: /root/[PROJECT_NAME]/ref/MN908947.3.fasta
+reference: '/mnt/projects/research/20076C_0503_Virologie_HT/reference/MN908947.3.fasta' # e.g: /root/[PROJECT_NAME]/ref/MN908947.3.fasta
 adapter1: 'AGATCGGAAGAGCACACGTCTGAACTCCAGTCA' # Adapter read 1
 adapter2: 'AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT' # Adapter read 2 
 krakendb: '/mnt/users/ahkocae1/tools/kraken2/kraken2_human' # extracted kraken path
+umiVar: '/mnt/users/ahkocae1/tools/umiVar'
 threads: 8 # number of threads
