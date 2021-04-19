@@ -4,8 +4,16 @@ from datetime import datetime
 import os
 import glob
 
+# Load Configfile in Repo and WorkingDir
+configfile: srcdir('config.yaml')
+if os.path.isfile('config.yaml'):
+        configfile: 'config.yaml'
+
 def get_samples():
-    return [item.strip() for item in config["samples"].split(",")]
+    if config["samples"] is not None:
+      return [item.strip() for item in config["samples"].split(",")]
+    else:
+      return [x.replace("Sample_", "") for x in glob.glob("Sample_*") if os.path.isdir(x)]
 
 def get_fastqs_by_R1(wildcards):
     fastqs = glob.glob("Sample_%s/%s*R1*.fastq.gz"%(wildcards.s,wildcards.s))
@@ -28,15 +36,15 @@ rule all:
     config['reference'],    # reference genome
     expand('Sample_{s}/virus/{s}_position_sorted.bam', s = all_sampleids), # mapping
     expand('Sample_{s}/virus/{s}_position_sorted.bam.bai', s = all_sampleids), # sort and index
-    expand('Sample_{s}/virus/{s}_stats_map.qcML', s = all_sampleids), # mapping_qc
+    #expand('Sample_{s}/virus/{s}_stats_map.qcML', s = all_sampleids), # mapping_qc
     expand('Sample_{s}/virus/{s}.mosdepth.summary.txt', s = all_sampleids), # coverage depth qc
     expand('Sample_{s}/ivar/{s}_ivar.vcf.gz', s = all_sampleids), # variant calling
     #expand('Sample_{s}/virus/{s}_variant_calling.qcML', s = all_sampleids), # variant qc
     expand('Sample_{s}/consensus/{s}_consensus_ivar.fa', s = all_sampleids),  # consensus ivar
-    expand('Sample_{s}/consensus/{s}_umivar.fasta', s = all_sampleids),  # consensus umivar
+    #expand('Sample_{s}/consensus/{s}_umivar.fasta', s = all_sampleids),  # consensus umivar
     #expand('Sample_{s}/quast_results', s = all_sampleids), # assembly 
     expand('Sample_{s}/ivar/{s}.variants.txt', s = all_sampleids), # variants.txt
-    expand('Sample_{s}/cfdna/{s}.cfdna_var.vcf.gz', s = all_sampleids), # umiVar
+    #expand('Sample_{s}/cfdna/{s}.cfdna_var.vcf.gz', s = all_sampleids), # umiVar
     expand('Sample_{s}/lofreq/{s}_lofreq.tsv', s = all_sampleids), # Lofreq
     expand('Sample_{s}/varscan/{s}_varscan.tsv', s = all_sampleids) # varscan
 
@@ -316,13 +324,14 @@ rule variant_calling:
   params:
     q = 20, #Minimum quality score threshold to count base (Default: 20)
     t = 0.03, #Minimum frequency threshold(0 - 1) to call variants (Default: 0.03)
-    ref = config['reference'] 
+    ref = config['reference'],
+    ivar_variants = srcdir("source/ivar_variants_to_vcf.py")
   shell:
     """
     mkdir -p ivar
     cd Sample_{wildcards.s}/ivar
     samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} ../virus/{wildcards.s}_position_sorted.bam | ivar variants -p {wildcards.s}_ivar -q {params.q} -t {params.t} -r {params.ref}
-    python ../../source/ivar_variants_to_vcf.py {wildcards.s}_ivar.tsv {wildcards.s}_ivar.vcf > {wildcards.s}.variant.counts.log
+    python {params.ivar_variants} {wildcards.s}_ivar.tsv {wildcards.s}_ivar.vcf > {wildcards.s}.variant.counts.log
     bgzip -c {wildcards.s}_ivar.vcf > {wildcards.s}_ivar.vcf.gz
     """
 

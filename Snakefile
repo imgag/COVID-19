@@ -4,6 +4,11 @@ from datetime import datetime
 import os
 import glob
 
+# Load Configfile in Repo and WorkingDir
+configfile: srcdir('config.yaml')
+if os.path.isfile('config.yaml'):
+        configfile: 'config.yaml'
+
 def get_samples():
     return [item.strip() for item in config["samples"].split(",")]
 
@@ -54,6 +59,8 @@ rule kraken:
     output:
         out1='Sample_{s}/{s}_kraken_1.fastq.gz',
         out2='Sample_{s}/{s}_kraken_2.fastq.gz',
+    log:
+        "logs/kraken_{s}.log"
     threads: 
         threads_max
     conda: 'envs/env_kraken.yaml'
@@ -61,7 +68,7 @@ rule kraken:
         db=config['krakendb']
     shell:
        """
-       kraken2 --db {params.db} -threads {threads} --unclassified-out Sample_{wildcards.s}/{wildcards.s}_kraken#.fastq --report Sample_{wildcards.s}/{wildcards.s}.kraken2.report.txt --report-zero-counts --paired --gzip-compressed {input.in1} {input.in2}
+       kraken2 --db {params.db} -threads {threads} --unclassified-out Sample_{wildcards.s}/{wildcards.s}_kraken.fastq --report Sample_{wildcards.s}/{wildcards.s}.kraken2.report.txt --report-zero-counts --paired --gzip-compressed {input.in1} {input.in2} > {log}
        gzip Sample_{wildcards.s}/{wildcards.s}_kraken_1.fastq
        gzip Sample_{wildcards.s}/{wildcards.s}_kraken_2.fastq
        """
@@ -187,11 +194,13 @@ rule variant_calling:
   log:
     'Sample_{s}/{s}_vc.log'
   conda: 'envs/env_ivar.yaml'
+  params:
+    ivar_variants = srcdir("source/ivar_variants_to_vcf.py")
   shell:
     """
     cd Sample_{wildcards.s}/virus
-    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {input.ref} {wildcards.s}_position_sorted.bam | ivar variants -p {wildcards.s} -q 20 -t 0.03 -r {input.ref}
-    python ../../source/ivar_variants_to_vcf.py {wildcards.s}.tsv {wildcards.s}.vcf > {wildcards.s}.variant.counts.log
+    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {input.ref} {wildcards.s}_position_sorted.bam | ivar variants -p {wildcards.s} -q 20 -t 0.03 -r {input.ref} > {log}
+    python {params.ivar_variants} {wildcards.s}.tsv {wildcards.s}.vcf > {wildcards.s}.variant.counts.log
     bgzip -c {wildcards.s}.vcf > {wildcards.s}.vcf.gz
     """
 
