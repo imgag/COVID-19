@@ -72,5 +72,5 @@ reference: '/mnt/projects/research/20076C_0503_Virologie_HT/reference/MN908947.3
 adapter1: 'AGATCGGAAGAGCACACGTCTGAACTCCAGTCA' # Adapter read 1
 adapter2: 'AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT' # Adapter read 2 
 krakendb: '/mnt/users/ahkocae1/tools/kraken2/kraken2_human' # extracted kraken path
-umiVar: '/mnt/users/ahkocae1/tools/umiVar'
+umiVar: '/mnt/users/ahkocae1/tools/umiVar2'
 threads: 8 # number of threads

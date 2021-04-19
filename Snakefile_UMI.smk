@@ -186,21 +186,59 @@ rule index:
         position_sorted_idx = 'Sample_{s}/virus/{s}_position_sorted.bam.bai'
     conda: 'envs/env_samtools.yaml'
     shell:
-        "samtools index {input.position_sorted_bam}"	
+        "samtools index {input.position_sorted_bam}"
+
+#### MAPPING FOR UMIVAR ####
+
+rule mapping_umivar:
+  input: 
+     r1='Sample_{s}/{s}_kraken_1.fastq.gz',
+     r2='Sample_{s}/{s}_kraken_2.fastq.gz',
+     index_files = rules.index_reference.output
+  output:
+    bam = 'Sample_{s}/virus/{s}_unsorted_umivar.bam'
+  threads: threads_max
+  params: 
+    ref = config['reference']
+  conda: 'envs/env_bwa.yaml'
+  shell:
+    """
+    bwa mem -t {threads} {params.ref} {input.r1} {input.r2} -M | samtools view -bS - > Sample_{wildcards.s}/virus/{wildcards.s}_unsorted_umivar.bam
+    """	
+
+#### SORT AND INDEX ####
+
+rule sort_by_position_umivar:
+    input: 
+        'Sample_{s}/virus/{s}_unsorted_umivar.bam'
+    output:
+        position_sorted_bam = 'Sample_{s}/virus/{s}_position_sorted_umivar.bam'
+    conda: 'envs/env_samtools.yaml'
+    threads: threads_max
+    shell:"samtools sort -@ {threads} -m 1G -o {output.position_sorted_bam} {input}"	
+
+rule index_umivar:
+    input: 
+        position_sorted_bam = 'Sample_{s}/virus/{s}_position_sorted_umivar.bam'
+    output:
+        position_sorted_idx = 'Sample_{s}/virus/{s}_position_sorted_umivar.bam.bai'
+    conda: 'envs/env_samtools.yaml'
+    shell:
+        "samtools index {input.position_sorted_bam}"
 
 #### DEDUPLICATE ####
 
 rule barcode_correction:
    input:
-       position_sorted_bam = 'Sample_{s}/virus/{s}_position_sorted.bam',
-       position_sorted_idx = 'Sample_{s}/virus/{s}_position_sorted.bam.bai'
+       position_sorted_bam = 'Sample_{s}/virus/{s}_position_sorted_umivar.bam',
+       position_sorted_idx = 'Sample_{s}/virus/{s}_position_sorted_umivar.bam.bai'
    output: 
        corrected_bam = 'Sample_{s}/dedup/{s}_corrected.bam'
    params:
-       barcode_correction = '%s/utils/barcode_correction.py'%config['umiVar']
+       barcode_correction = '%s/barcode_correction.py'%config['umiVar']
    shell:
        """
-       python2 {params.barcode_correction} --infile {input.position_sorted_bam} --outfile {output.corrected_bam}
+       python {params.barcode_correction} --infile {input.position_sorted_bam} --outfile {output.corrected_bam}
        """
 
 rule sort_by_position_after_correction:
@@ -267,12 +305,12 @@ rule umivar:
   params:
     target = config["target_twist"],
     ref = '/mnt/share/data/genomes/GRCh38_MN908947.fa',
-    umiVar= '%s/cfdna_caller.sh'%config["umiVar"]
+    umiVar= '%s/umiVar.py'%config["umiVar"]
   shell:
     """
     mkdir -p logs
     {params.umiVar} \
-        -bam {input.bam} \
+        -tbam {input.bam} \
         -o {output} \
         -b {params.target} \
         -r {params.ref} \
