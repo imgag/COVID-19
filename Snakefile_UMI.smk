@@ -16,11 +16,11 @@ def get_samples():
       return [x.replace("Sample_", "") for x in glob.glob("Sample_*") if os.path.isdir(x)]
 
 def get_fastqs_by_R1(wildcards):
-    fastqs = glob.glob("Sample_%s/%s*R1*.fastq.gz"%(wildcards.s,wildcards.s))
+    fastqs = glob.glob("Sample_%s/%s*L00*R1*.fastq.gz"%(wildcards.s,wildcards.s))
     return sorted(fastqs,key=lambda x: x)
     
 def get_fastqs_by_R2(wildcards):
-    fastqs = glob.glob("Sample_%s/%s*R2*.fastq.gz"%(wildcards.s,wildcards.s))
+    fastqs = glob.glob("Sample_%s/%s*L00*R2*.fastq.gz"%(wildcards.s,wildcards.s))
     return sorted(fastqs,key=lambda x: x)
 
 def get_fastqs_by_index(wildcards):
@@ -117,7 +117,7 @@ rule trimming:
 	a2=config['adapter2']
     shell:
         """
-        SeqPurge -progress 1000 -in1 {input.in1} -in2 {input.in2} -out1 {output.out1} -out2 {output.out2} -a1 {params.a1} -a2 {params.a2} -qc {output.qc} -threads {threads}
+        SeqPurge -in1 {input.in1} -in2 {input.in2} -out1 {output.out1} -out2 {output.out2} -a1 {params.a1} -a2 {params.a2} -qc {output.qc} -threads {threads}
         """
 
 #### MAPPING ####
