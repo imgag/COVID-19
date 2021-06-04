@@ -7,11 +7,12 @@ import glob
 # Load Configfile in Repo and WorkingDir
 configfile: srcdir('config.yaml')
 if os.path.isfile('config.yaml'):
-        configfile: 'config.yaml'
+  print("Found project config file")
+  configfile: 'config.yaml'
 
 def get_samples():
     if config["samples"] is not None:
-      return [item.strip() for item in config["samples"].split(",")]
+      return [item.strip().replace("Sample_", "") for item in config["samples"]]
     else:
       return [x.replace("Sample_", "") for x in glob.glob("Sample_*") if os.path.isdir(x)]
 
@@ -45,6 +46,7 @@ rule all:
     #expand('Sample_{s}/quast_results', s = all_sampleids), # assembly 
     expand('Sample_{s}/ivar/{s}.variants.txt', s = all_sampleids), # variants.txt
     #expand('Sample_{s}/cfdna/{s}.cfdna_var.vcf.gz', s = all_sampleids), # umiVar
+    expand('Sample_{s}/umivar2/{s}.umivar2_var.vcf', s = all_sampleids), #umiVar2
     expand('Sample_{s}/lofreq/{s}_lofreq.tsv', s = all_sampleids), # Lofreq
     expand('Sample_{s}/varscan/{s}_varscan.tsv', s = all_sampleids) # varscan
 
@@ -191,17 +193,21 @@ rule index:
 #### DEDUPLICATE ####
 
 rule barcode_correction:
-   input:
-       position_sorted_bam = 'Sample_{s}/virus/{s}_position_sorted.bam',
-       position_sorted_idx = 'Sample_{s}/virus/{s}_position_sorted.bam.bai'
-   output: 
-       corrected_bam = 'Sample_{s}/dedup/{s}_corrected.bam'
-   params:
-       barcode_correction = '%s/utils/barcode_correction.py'%config['umiVar']
-   shell:
-       """
-       python2 {params.barcode_correction} --infile {input.position_sorted_bam} --outfile {output.corrected_bam}
-       """
+  input:
+    position_sorted_bam = 'Sample_{s}/virus/{s}_position_sorted.bam',
+    position_sorted_idx = 'Sample_{s}/virus/{s}_position_sorted.bam.bai'
+  output: 
+    corrected_bam = 'Sample_{s}/dedup/{s}_corrected.bam'
+  conda:
+     "envs/env_umivar.yaml"
+  log:
+    "logs/{s}_barcode_correction.log"    
+  params:
+    barcode_correction = '%s/barcode_correction.py'%config['umiVar']
+  shell:
+    """
+    {params.barcode_correction} --infile {input.position_sorted_bam} --outfile {output.corrected_bam} > {log}
+    """
 
 rule sort_by_position_after_correction:
     input: 
@@ -279,7 +285,31 @@ rule umivar:
         -ac 4 -str 0 -ns 1 \
 		> {log} 2>&1
     """
-	
+
+#### UMIVAR 2 ####
+rule umivar2:
+  input: 
+    bam = 'Sample_{s}/dedup/{s}_corrected_sorted.bam',
+    idx = 'Sample_{s}/dedup/{s}_corrected_sorted.bam.bai'
+  output: 'Sample_{s}/umivar2/{s}.umivar2_var.vcf'
+  conda: 'envs/env_umivar.yaml'
+  log:
+      "logs/{s}_umivar2.log"
+  params:
+    target = config["target_twist"],
+    ref = '/mnt/share/data/genomes/GRCh38_MN908947.fa',
+    umiVar= '%s/umiVar.py'%config['umiVar']
+  shell:
+    """
+    {params.umiVar} \
+        -tbam {input.bam} \
+        -o {output} \
+        -b {params.target} \
+        -r {params.ref} \
+        -ac 4 -str 0 -ns 1 \
+		> {log} 2>&1
+    """
+
 #### LOFREQ ####
 rule lofreq_call:
     input:
