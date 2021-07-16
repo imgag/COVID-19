@@ -107,7 +107,7 @@ rule mapping:
   conda: 'envs/env_bwa.yaml'
   shell:
     """
-    bwa mem -t {threads} {params.ref} {input.r1} {input.r2} -M | samtools view -bS - > Sample_{wildcards.s}/virus/{wildcards.s}_unsorted.bam
+    bwa mem -t {threads} {params.ref} {input.r1} {input.r2} -M | samblaster -M | samtools view -bS - > Sample_{wildcards.s}/virus/{wildcards.s}_unsorted.bam
     """
 		
 rule mapping_qc:
