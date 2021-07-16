@@ -35,22 +35,20 @@ rule all:
   input:
     config['krakendb'], # krakendb 
     config['reference'],    # reference genome
-    expand('Sample_{s}/virus/{s}_position_sorted.bam', s = all_sampleids), # mapping
-    expand('Sample_{s}/virus/{s}_position_sorted.bam.bai', s = all_sampleids), # sort and index
-    #expand('Sample_{s}/virus/{s}_stats_map.qcML', s = all_sampleids), # mapping_qc
-    expand('Sample_{s}/virus/{s}.mosdepth.summary.txt', s = all_sampleids), # coverage depth qc
+    expand('Sample_{s}/{s}.viral.bam', s = all_sampleids), # mapping
+    expand('Sample_{s}/virus/{s}_stats_map.qcML', s = all_sampleids), # mapping_qc
+    expand('Sample_{s}/coverage/{s}.mosdepth.summary.txt', s = all_sampleids), # coverage depth qc
     expand('Sample_{s}/ivar/{s}_ivar.vcf.gz', s = all_sampleids), # variant calling
-    #expand('Sample_{s}/virus/{s}_variant_calling.qcML', s = all_sampleids), # variant qc
     expand('Sample_{s}/consensus/{s}_consensus_ivar.fa', s = all_sampleids),  # consensus ivar
     #expand('Sample_{s}/consensus/{s}_umivar.fasta', s = all_sampleids),  # consensus umivar
     #expand('Sample_{s}/quast_results', s = all_sampleids), # assembly 
     expand('Sample_{s}/ivar/{s}.variants.txt', s = all_sampleids), # variants.txt
-    #expand('Sample_{s}/cfdna/{s}.cfdna_var.vcf.gz', s = all_sampleids), # umiVar
-    expand('Sample_{s}/umivar2/{s}.umivar2_var.vcf', s = all_sampleids), #umiVar2
+    expand('Sample_{s}/umivar2/{s}.viral_hq.vcf', s = all_sampleids), #umiVar2
     expand('Sample_{s}/lofreq/{s}_lofreq.tsv', s = all_sampleids), # Lofreq
     expand('Sample_{s}/varscan/{s}_varscan.tsv', s = all_sampleids) # varscan
 
-#### INDEX REFERENCE ####
+
+
 rule index_reference:
   input: 
      ref= config['reference'] 
@@ -66,50 +64,31 @@ rule index_reference:
     bwa index {input.ref}
     """
 		
-#### KRAKEN ####
-rule kraken:
-    input:
-        in1='Sample_{s}/temp/{s}_R1_trimmed.fastq.gz',
-        in2='Sample_{s}/temp/{s}_R2_trimmed.fastq.gz'
-    output:
-        out1='Sample_{s}/{s}_kraken_1.fastq.gz',
-        out2='Sample_{s}/{s}_kraken_2.fastq.gz',
-    threads: 
-        threads_max
-    conda: 'envs/env_kraken.yaml'
-    params:
-        db=config['krakendb']
-    shell:
-       """
-       kraken2 --db {params.db} -threads {threads} --unclassified-out Sample_{wildcards.s}/{wildcards.s}_kraken#.fastq --report Sample_{wildcards.s}/{wildcards.s}.kraken2.report.txt --report-zero-counts --paired --gzip-compressed {input.in1} {input.in2}
-       gzip Sample_{wildcards.s}/{wildcards.s}_kraken_1.fastq
-       gzip Sample_{wildcards.s}/{wildcards.s}_kraken_2.fastq
-       """
+#_______ READ PREPROCESSING__________________________________________________________# 
 
-#### ADD_BARCODE ####
+# Add UMI Barcodes to FASTQ header
 rule add_barcode:
     input:
         in1=get_fastqs_by_R1,
         in2=get_fastqs_by_R2,
         barcode=get_fastqs_by_index
     output:
-        out1='Sample_{s}/temp/{s}_R1_barcode_added.fastq.gz',
-        out2='Sample_{s}/temp/{s}_R2_barcode_added.fastq.gz'
+        out1=temp('Sample_{s}/{s}_R1_barcode_added.fastq.gz'),
+        out2=temp('Sample_{s}/{s}_R2_barcode_added.fastq.gz')
     conda: 'envs/env_ngs_bits.yaml'
     shell:
         """
         FastqAddBarcode -in1 {input.in1} -in2 {input.in2} -in_barcode {input.barcode} -out1 {output.out1} -out2 {output.out2}
         """
 
-#### TRIMMING ####
-
+# Read trimming and ReadQC
 rule trimming:
     input:
-        in1='Sample_{s}/temp/{s}_R1_barcode_added.fastq.gz',
-        in2='Sample_{s}/temp/{s}_R2_barcode_added.fastq.gz'
+        in1='Sample_{s}/{s}_R1_barcode_added.fastq.gz',
+        in2='Sample_{s}/{s}_R2_barcode_added.fastq.gz'
     output:
-        out1='Sample_{s}/temp/{s}_R1_trimmed.fastq.gz',
-        out2='Sample_{s}/temp/{s}_R2_trimmed.fastq.gz',
+        out1=temp('Sample_{s}/{s}_R1_trimmed.fastq.gz'),
+        out2=temp('Sample_{s}/{s}_R2_trimmed.fastq.gz'),
         qc= 'Sample_{s}/{s}_stats_fastq.qcML'
     threads: 
         threads_max
@@ -122,30 +101,61 @@ rule trimming:
         SeqPurge -progress 1000 -in1 {input.in1} -in2 {input.in2} -out1 {output.out1} -out2 {output.out2} -a1 {params.a1} -a2 {params.a2} -qc {output.qc} -threads {threads}
         """
 
-#### MAPPING ####
+# Removal of human host reads with Kraken 
+rule kraken:
+    input:
+        in1='Sample_{s}/temp/{s}_R1_trimmed.fastq.gz',
+        in2='Sample_{s}/temp/{s}_R2_trimmed.fastq.gz'
+    output:
+        out1='Sample_{s}/{s}_viral_R1.fastq.gz',
+        out2='Sample_{s}/{s}_viral_R2.fastq.gz',
+    threads: 
+        threads_max
+    conda: 'envs/env_kraken.yaml'
+    params:
+        db=config['krakendb']
+    shell:
+       """
+       kraken2  \
+        --db {params.db} \
+        -threads {threads} \
+        --unclassified-out Sample_{wildcards.s}/{wildcards.s}_viral_R#.fastq  \
+        --report Sample_{wildcards.s}/{wildcards.s}.kraken2.report.txt  \
+        --report-zero-counts  \
+        --paired --gzip-compressed \
+        {input.in1} {input.in2} > /dev/null
+       gzip Sample_{wildcards.s}/{wildcards.s}_viral_R1.fastq
+       gzip Sample_{wildcards.s}/{wildcards.s}_viral_R2.fastq
+       """
+
+
+#_______ MAPPING ___________________________________________________________#
 
 rule mapping:
   input: 
-     r1='Sample_{s}/{s}_kraken_1.fastq.gz',
-     r2='Sample_{s}/{s}_kraken_2.fastq.gz',
+     r1='Sample_{s}/{s}_viral_R1.fastq.gz',
+     r2='Sample_{s}/{s}_viral_R2.fastq.gz',
      index_files = rules.index_reference.output
   output:
-    bam = 'Sample_{s}/virus/{s}_unsorted.bam'
+    bam = 'Sample_{s}/{s}.viral.bam'
   threads: threads_max
   params: 
     ref = config['reference']
   conda: 'envs/env_bwa.yaml'
   shell:
     """
-    bwa mem -t {threads} {params.ref} {input.r1} {input.r2} -M | samblaster -M | samtools view -bS - > Sample_{wildcards.s}/virus/{wildcards.s}_unsorted.bam
+    bwa mem -t {threads} {params.ref} {input.r1} {input.r2} -M | \
+      samblaster -M | \
+      samtools view -bS - | \
+      samtools sort -@4 -m 1G -o {output} -
+    samtools index {output}
     """
 		
 rule mapping_qc:
   input:
-    bam = 'Sample_{s}/virus/{s}_position_sorted.bam',
-    idx = 'Sample_{s}/virus/{s}_position_sorted.bam.bai'
+    bam = 'Sample_{s}/{s}.viral.bam'
   output:
-    qcml = 'Sample_{s}/virus/{s}_stats_map.qcML'
+    qcml = 'Sample_{s}/{s}_stats_map.qcML'
   params:
     target = config["target_twist"]
   conda: 'envs/env_ngs_bits.yaml'
@@ -156,48 +166,25 @@ rule mapping_qc:
 
 rule cov_depth_qc:
   input:
-    bam = 'Sample_{s}/virus/{s}_position_sorted.bam',
-    idx = 'Sample_{s}/virus/{s}_position_sorted.bam.bai'
+    bam = 'Sample_{s}/{s}.viral.bam'
   output:
-    qcml = 'Sample_{s}/virus/{s}.mosdepth.summary.txt'
+    qcml = 'Sample_{s}/coverage/{s}.mosdepth.summary.txt'
   params:
     target = config["target_twist"]
   conda: 'envs/env_mosdepth.yaml'
   threads: threads_max
   shell:
     """
-    cd Sample_{wildcards.s}/virus
-    mosdepth --by {params.target} -t {threads} {wildcards.s} {wildcards.s}_position_sorted.bam
+    mosdepth --by {params.target} -t {threads} Sample_{wildcards.s}/coverage/{wildcards.s} {input}
     """
 
-#### SORT AND INDEX ####
-
-rule sort_by_position:
-    input: 
-        'Sample_{s}/virus/{s}_unsorted.bam'
-    output:
-        position_sorted_bam = 'Sample_{s}/virus/{s}_position_sorted.bam'
-    conda: 'envs/env_samtools.yaml'
-    threads: threads_max
-    shell:"samtools sort -@ {threads} -m 1G -o {output.position_sorted_bam} {input}"	
-
-rule index:
-    input: 
-        position_sorted_bam = 'Sample_{s}/virus/{s}_position_sorted.bam'
-    output:
-        position_sorted_idx = 'Sample_{s}/virus/{s}_position_sorted.bam.bai'
-    conda: 'envs/env_samtools.yaml'
-    shell:
-        "samtools index {input.position_sorted_bam}"	
-
-#### DEDUPLICATE ####
+#_______ DEDUPLICATE ________________________________________________________#
 
 rule barcode_correction:
   input:
-    position_sorted_bam = 'Sample_{s}/virus/{s}_position_sorted.bam',
-    position_sorted_idx = 'Sample_{s}/virus/{s}_position_sorted.bam.bai'
+    bam = 'Sample_{s}/{s}.viral.bam'
   output: 
-    corrected_bam = 'Sample_{s}/dedup/{s}_corrected.bam'
+    corrected_bam = 'Sample_{s}/dedup/{s}.viral.corrected.bam'
   conda:
      "envs/env_umivar.yaml"
   log:
@@ -206,7 +193,7 @@ rule barcode_correction:
     barcode_correction = '%s/barcode_correction.py'%config['umiVar']
   shell:
     """
-    {params.barcode_correction} --infile {input.position_sorted_bam} --outfile {output.corrected_bam} > {log}
+    {params.barcode_correction} --infile {input.bam} --outfile {output.corrected_bam} > {log}
     """
 
 rule sort_by_position_after_correction:
@@ -226,9 +213,6 @@ rule index_after_correction:
     conda: 'envs/env_samtools.yaml'
     shell:
         "samtools index {input.corrected_sorted_bam}"	
-
-
-#### BamClipOverlap ####
 
 rule bamclipoverlap:
     input:
@@ -260,60 +244,40 @@ rule index_overlap:
     shell:
         "samtools index {input.bamclipoverlap_sorted_bam}"	
 
+#_______ VARIANT CALLING ________________________________________________________#
 
-#### UMIVAR ####
-rule umivar:
-  input: 
-    bam = 'Sample_{s}/dedup/{s}_corrected_sorted.bam',
-    idx = 'Sample_{s}/dedup/{s}_corrected_sorted.bam.bai'
-  output: 'Sample_{s}/cfdna/{s}.cfdna_var.vcf.gz'
-  conda: 'envs/env_umivar.yaml'
-  log:
-      "logs/{s}_%s_umiVar.log"%datetime.now().strftime('%H_%M_%d_%m_%Y')
-  params:
-    target = config["target_twist"],
-    ref = '/mnt/share/data/genomes/GRCh38_MN908947.fa',
-    umiVar= '%s/cfdna_caller.sh'%config["umiVar"]
-  shell:
-    """
-    mkdir -p logs
-    {params.umiVar} \
-        -bam {input.bam} \
-        -o {output} \
-        -b {params.target} \
-        -r {params.ref} \
-        -ac 4 -str 0 -ns 1 \
-		> {log} 2>&1
-    """
-
-#### UMIVAR 2 ####
+# Umivar2
 rule umivar2:
   input: 
-    bam = 'Sample_{s}/dedup/{s}_corrected_sorted.bam',
-    idx = 'Sample_{s}/dedup/{s}_corrected_sorted.bam.bai'
-  output: 'Sample_{s}/umivar2/{s}.umivar2_var.vcf'
+    bam = 'Sample_{s}/{s}.viral.bam'
+  output: 'Sample_{s}/umivar2/{s}.viral_hq.vcf'
   conda: 'envs/env_umivar.yaml'
   log:
       "logs/{s}_umivar2.log"
   params:
     target = config["target_twist"],
-    ref = '/mnt/share/data/genomes/GRCh38_MN908947.fa',
-    umiVar= '%s/umiVar.py'%config['umiVar']
+    ref = config['reference'],
+    umiVar= '%s/umiVar.py'%config['umiVar'],
+    ac = "-ac " + config['umivar']['ac'] if 'ac' in config['umivar'] else "",
+    af = "-af " + config['umivar']['af'] if 'af' in config['umivar'] else "",
+    ns = "-ns " + config['umivar']['ns'] if 'ns' in config['umivar'] else "",
+    sb = "-sb " + config['umivar']['sb'] if 'sb' in config['umivar'] else "",
+    kt = "-kt " if 'kt' in config['umivar'] else ""
+
   shell:
     """
     {params.umiVar} \
         -tbam {input.bam} \
-        -o {output} \
         -b {params.target} \
         -r {params.ref} \
-        -ac 4 -str 0 -ns 1 \
-		> {log} 2>&1
+        -o /mnt/users/ahgrosc1/projects/covid_umi/samples/Sample_{wildcards.s}/umivar2 \
+        {params.ac} {params.af} {params.ns} {params.sb} {params.kt} 
     """
 
-#### LOFREQ ####
+# LoFreq
 rule lofreq_call:
     input:
-        bam = 'Sample_{s}/virus/{s}_position_sorted.bam'
+        bam = 'Sample_{s}/{s}.viral.bam'
     output:
         "Sample_{s}/lofreq/{s}_lofreq.tsv"
     params:
@@ -324,10 +288,10 @@ rule lofreq_call:
         lofreq call --call-indels -f {params.ref} -o {output} {input.bam}
         """
 
-#### VARSCAN ####
+# VarScan
 rule varscan:
   input:
-    bam = 'Sample_{s}/virus/{s}_position_sorted.bam'
+    bam = 'Sample_{s}/{s}.viral.bam'
   output:
     "Sample_{s}/varscan/{s}_varscan.tsv"
   log:
@@ -340,12 +304,11 @@ rule varscan:
     samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | java -jar /mnt/share/opt/VarScan.v2.4.4/VarScan.v2.4.4.jar pileup2snp --variants - > {output}
     """
 		
-#### IVAR ####
-
+# Ivar
 rule variant_calling:
   input:
-    bam = 'Sample_{s}/virus/{s}_position_sorted.bam',
-    idx = 'Sample_{s}/virus/{s}_position_sorted.bam.bai',
+    bam = 'Sample_{s}/{s}.viral.bam',
+    idx = 'Sample_{s}/{s}.viral.bam.bai',
   output:
     vcf = 'Sample_{s}/ivar/{s}_ivar.vcf.gz'
   log:
@@ -365,6 +328,7 @@ rule variant_calling:
     bgzip -c {wildcards.s}_ivar.vcf > {wildcards.s}_ivar.vcf.gz
     """
 
+# QC
 rule variant_qc:
   input:
     'Sample_{s}/virus/{s}.vcf.gz'
@@ -376,11 +340,12 @@ rule variant_qc:
 	VariantQC -in {input} -out virus/{wildcards.s}.qcML
     """
 
-#### CONSENSUS ####
+#_______ CONSENSUS ____________________________________________________#
 
+# Ivar
 rule consensus_ivar:
   input:
-    ivar = 'Sample_{s}/virus/{s}_position_sorted.bam'
+    ivar = 'Sample_{s}/.viral..bam'
   output:
     fasta = 'Sample_{s}/consensus/{s}_consensus_ivar.fa'
   conda: 'envs/env_ivar.yaml'
@@ -394,6 +359,7 @@ rule consensus_ivar:
         -p Sample_{wildcards.s}/consensus/{wildcards.s}_consensus_ivar
     """
 
+# Umivar2
 rule consensus_umivar:
   input:
     vcf = 'Sample_{s}/cfdna/{s}.cfdna_var.vcf.gz'
@@ -425,12 +391,12 @@ rule variant_table:
         >> {output}
     """
 	
-#### ASSEMBLY ####
+#_______ ASSEMBLY ____________________________________________________#
 
 rule assembly:
   input:
-    r1='Sample_{s}/{s}_kraken_1.fastq.gz',
-    r2='Sample_{s}/{s}_kraken_2.fastq.gz'
+    r1='Sample_{s}/{s}_viral_R1.fastq.gz',
+    r2='Sample_{s}/{s}_viral_R2.fastq.gz'
   output:
     dir = 'Sample_{s}/spades/contigs.fasta'
   threads: threads_max

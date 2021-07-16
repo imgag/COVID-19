@@ -74,3 +74,8 @@ adapter2: 'AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT' # Adapter read 2
 krakendb: '/mnt/users/ahkocae1/tools/kraken2/kraken2_human' # extracted kraken path
 umiVar: 'python3 /mnt/users/ahgrosc1/dev/umivar2'
 threads: 8 # number of threads
+
+umivar:
+  ac: "4"
+  ns: "-1"
+  sb: "0"
