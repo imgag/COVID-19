@@ -36,7 +36,6 @@ rule all:
     config['krakendb'], # krakendb 
     config['reference'],    # reference genome
     expand('Sample_{s}/{s}.viral.bam', s = all_sampleids), # mapping
-    expand('Sample_{s}/virus/{s}_stats_map.qcML', s = all_sampleids), # mapping_qc
     expand('Sample_{s}/coverage/{s}.mosdepth.summary.txt', s = all_sampleids), # coverage depth qc
     expand('Sample_{s}/ivar/{s}_ivar.vcf.gz', s = all_sampleids), # variant calling
     expand('Sample_{s}/consensus/{s}_consensus_ivar.fa', s = all_sampleids),  # consensus ivar
@@ -104,11 +103,11 @@ rule trimming:
 # Removal of human host reads with Kraken 
 rule kraken:
     input:
-        in1='Sample_{s}/temp/{s}_R1_trimmed.fastq.gz',
-        in2='Sample_{s}/temp/{s}_R2_trimmed.fastq.gz'
+        in1='Sample_{s}/{s}_R1_trimmed.fastq.gz',
+        in2='Sample_{s}/{s}_R2_trimmed.fastq.gz'
     output:
-        out1='Sample_{s}/{s}_viral_R1.fastq.gz',
-        out2='Sample_{s}/{s}_viral_R2.fastq.gz',
+        out1='Sample_{s}/{s}_viral_1.fastq.gz',
+        out2='Sample_{s}/{s}_viral_2.fastq.gz',
     threads: 
         threads_max
     conda: 'envs/env_kraken.yaml'
@@ -119,13 +118,13 @@ rule kraken:
        kraken2  \
         --db {params.db} \
         -threads {threads} \
-        --unclassified-out Sample_{wildcards.s}/{wildcards.s}_viral_R#.fastq  \
+        --unclassified-out Sample_{wildcards.s}/{wildcards.s}_viral#.fastq  \
         --report Sample_{wildcards.s}/{wildcards.s}.kraken2.report.txt  \
         --report-zero-counts  \
         --paired --gzip-compressed \
         {input.in1} {input.in2} > /dev/null
-       gzip Sample_{wildcards.s}/{wildcards.s}_viral_R1.fastq
-       gzip Sample_{wildcards.s}/{wildcards.s}_viral_R2.fastq
+       gzip Sample_{wildcards.s}/{wildcards.s}_viral_1.fastq
+       gzip Sample_{wildcards.s}/{wildcards.s}_viral_2.fastq
        """
 
 
@@ -133,8 +132,8 @@ rule kraken:
 
 rule mapping:
   input: 
-     r1='Sample_{s}/{s}_viral_R1.fastq.gz',
-     r2='Sample_{s}/{s}_viral_R2.fastq.gz',
+     r1='Sample_{s}/{s}_viral_1.fastq.gz',
+     r2='Sample_{s}/{s}_viral_2.fastq.gz',
      index_files = rules.index_reference.output
   output:
     bam = 'Sample_{s}/{s}.viral.bam'
@@ -389,13 +388,12 @@ rule variant_table:
         | awk -v OFS='\t' '$7 = $5/$6' \
         >> {output}
     """
-	
 #_______ ASSEMBLY ____________________________________________________#
 
 rule assembly:
   input:
-    r1='Sample_{s}/{s}_viral_R1.fastq.gz',
-    r2='Sample_{s}/{s}_viral_R2.fastq.gz'
+    r1='Sample_{s}/{s}_viral_1.fastq.gz',
+    r2='Sample_{s}/{s}_viral_2.fastq.gz'
   output:
     dir = 'Sample_{s}/spades/contigs.fasta'
   threads: threads_max
