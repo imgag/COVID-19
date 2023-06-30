@@ -24,7 +24,7 @@
 	            |_ kraken2_human
 ```  
 
-- Download kraken db  
+- Download kraken database
 ```
 wget https://zenodo.org/record/3738199/files/kraken2_human.tar.gz
 ```
