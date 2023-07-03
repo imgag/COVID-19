@@ -49,7 +49,7 @@ snakemake -s Snakefile_UMI --configfile config.yaml --cores
 or
 snakemake -s Snakefile_Twist --configfile config.yaml --cores
 ```
-- Recommended:running snakemake from mamba enviroment
+- Recommended: running snakemake from mamba enviroment
 ```
 mamba create -c conda-forge -c bioconda -n snakemake snakemake
 mamba activate snakemake
