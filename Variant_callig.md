@@ -1,7 +1,7 @@
 - parameters used
 
 ```
-https://academic.oup.com/bib/article/22/3/bbaa123/5868070
+[Paper](https://academic.oup.com/bib/article/22/3/bbaa123/5868070)
 
 "Variant calling
 
