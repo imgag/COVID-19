@@ -24,7 +24,7 @@
 	            |_ kraken2_human
 ```  
 
-- Download kraken db  
+- Download kraken database
 ```
 wget https://zenodo.org/record/3738199/files/kraken2_human.tar.gz
 ```
@@ -48,4 +48,9 @@ cd [PROJECT_NAME]
 snakemake -s Snakefile_UMI --configfile config.yaml --cores
 or
 snakemake -s Snakefile_Twist --configfile config.yaml --cores
+```
+- Recommended:running snakemake from mamba enviroment
+```
+mamba create -c conda-forge -c bioconda -n snakemake snakemake
+mamba activate snakemake
 ```

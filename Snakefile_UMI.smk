@@ -40,14 +40,20 @@ rule all:
     expand('Sample_{s}/ivar/{s}_ivar.vcf.gz', s = all_sampleids), # variant calling
     expand('Sample_{s}/consensus/{s}_consensus_ivar.fa', s = all_sampleids),  # consensus ivar
     #expand('Sample_{s}/consensus/{s}_umivar.fasta', s = all_sampleids),  # consensus umivar
-    #expand('Sample_{s}/quast_results', s = all_sampleids), # assembly 
+    expand('Sample_{s}/quast_results', s = all_sampleids), # assembly 
     expand('Sample_{s}/ivar/{s}.variants.txt', s = all_sampleids), # variants.txt
-    expand('Sample_{s}/umivar2/{s}.viral_hq.vcf', s = all_sampleids), #umiVar2
+    #expand('Sample_{s}/umivar2/{s}.viral_hq.vcf', s = all_sampleids), #umiVar2
+    expand('Sample_{s}/umivar2/{s}_bamclipoverlap_sorted_hq.vcf', s = all_sampleids), #umiVar2
     expand('Sample_{s}/lofreq/{s}_lofreq.tsv', s = all_sampleids), # Lofreq
-    expand('Sample_{s}/varscan/{s}_varscan.tsv', s = all_sampleids) # varscan
+    expand('Sample_{s}/varscan/{s}_varscan.tsv', s = all_sampleids), # varscan
+    expand('Sample_{s}/dedup/ivar/{s}.variants.txt', s = all_sampleids), # variants.txt
+    expand('Sample_{s}/dedup/lofreq/{s}_lofreq.tsv', s = all_sampleids), # Lofreq
+    expand('Sample_{s}/dedup/varscan/{s}_varscan.tsv', s = all_sampleids), # varscan
+    expand('Sample_{s}/{s}_R1_trimmed.fastq.gz', s = all_sampleids)#want to check output 
 
 
-
+##why here?
+# INDEX REFERENCE genome
 rule index_reference:
   input: 
      ref= config['reference'] 
@@ -72,8 +78,10 @@ rule add_barcode:
         in2=get_fastqs_by_R2,
         barcode=get_fastqs_by_index
     output:
-        out1=temp('Sample_{s}/{s}_R1_barcode_added.fastq.gz'),
-        out2=temp('Sample_{s}/{s}_R2_barcode_added.fastq.gz')
+        #out1=temp('Sample_{s}/{s}_R1_barcode_added.fastq.gz'),
+        #out2=temp('Sample_{s}/{s}_R2_barcode_added.fastq.gz')
+        out1='Sample_{s}/{s}_R1_barcode_added.fastq.gz',
+        out2='Sample_{s}/{s}_R2_barcode_added.fastq.gz'
     conda: 'envs/env_ngs_bits.yaml'
     shell:
         """
@@ -83,12 +91,14 @@ rule add_barcode:
 # Read trimming and ReadQC
 rule trimming:
     input:
-        in1='Sample_{s}/{s}_R1_barcode_added.fastq.gz',
-        in2='Sample_{s}/{s}_R2_barcode_added.fastq.gz'
+        in1=rules.add_barcode.output.out1,
+        in2=rules.add_barcode.output.out2
     output:
-        out1=temp('Sample_{s}/{s}_R1_trimmed.fastq.gz'),
-        out2=temp('Sample_{s}/{s}_R2_trimmed.fastq.gz'),
-        qc= 'Sample_{s}/{s}_stats_fastq.qcML'
+        #out1=temp('Sample_{s}/{s}_R1_trimmed.fastq.gz'),#want to keep temp files to test newer version of kraken
+        #out2=temp('Sample_{s}/{s}_R2_trimmed.fastq.gz'),
+        out1='Sample_{s}/{s}_R1_trimmed.fastq.gz',
+        out2='Sample_{s}/{s}_R2_trimmed.fastq.gz',
+        qc='Sample_{s}/{s}_stats_fastq.qcML'
     threads: 
         threads_max
     conda: 'envs/env_ngs_bits.yaml'
@@ -103,8 +113,8 @@ rule trimming:
 # Removal of human host reads with Kraken 
 rule kraken:
     input:
-        in1='Sample_{s}/{s}_R1_trimmed.fastq.gz',
-        in2='Sample_{s}/{s}_R2_trimmed.fastq.gz'
+        in1=rules.trimming.output.out1,
+        in2=rules.trimming.output.out2
     output:
         out1='Sample_{s}/{s}_viral_1.fastq.gz',
         out2='Sample_{s}/{s}_viral_2.fastq.gz',
@@ -132,11 +142,12 @@ rule kraken:
 
 rule mapping:
   input: 
-     r1='Sample_{s}/{s}_viral_1.fastq.gz',
-     r2='Sample_{s}/{s}_viral_2.fastq.gz',
+     r1=rules.kraken.output.out1,
+     r2=rules.kraken.output.out2,
      index_files = rules.index_reference.output
   output:
-    bam = 'Sample_{s}/{s}.viral.bam'
+    bam = 'Sample_{s}/{s}.viral.bam',
+    idx = 'Sample_{s}/{s}.viral.bam.bai'
   threads: threads_max
   params: 
     ref = config['reference']
@@ -145,13 +156,13 @@ rule mapping:
     """
     bwa mem -t {threads} {params.ref} {input.r1} {input.r2} -M | \
       samtools view -bS - | \
-      samtools sort -@4 -m 1G -o {output} -
-    samtools index {output}
+      samtools sort -@4 -m 1G -o {output.bam}
+    samtools index {output.bam}
     """
 		
 rule mapping_qc:
   input:
-    bam = 'Sample_{s}/{s}.viral.bam'
+    bam = rules.mapping.output.bam
   output:
     qcml = 'Sample_{s}/{s}_stats_map.qcML'
   params:
@@ -164,7 +175,7 @@ rule mapping_qc:
 
 rule cov_depth_qc:
   input:
-    bam = 'Sample_{s}/{s}.viral.bam'
+    bam = rules.mapping.output.bam
   output:
     qcml = 'Sample_{s}/coverage/{s}.mosdepth.summary.txt'
   params:
@@ -175,14 +186,31 @@ rule cov_depth_qc:
     """
     mosdepth --by {params.target} -t {threads} Sample_{wildcards.s}/coverage/{wildcards.s} {input}
     """
+#duplicate samblaster
+rule mapping_duplicate_samblaster:
+  input: 
+    bam=rules.mapping.output.bam
+  output:
+    bam = 'Sample_{s}/dedup/{s}.viral.samblaster.bam',
+    idx = 'Sample_{s}/dedup/{s}.viral.samblaster.bam.bai'
+  threads: threads_max
+  params: 
+    ref = config['reference']
+  conda: 'envs/env_bwa.yaml'
+  shell:
+    """
 
-#_______ DEDUPLICATE ________________________________________________________#
+    samtools sort -@4 -m 1G -n {input.bam}|samtools view -h | samblaster -M | samtools sort -o {output.bam}
+    samtools index {output.bam}
+    """
+
+#_______ DEDUPLICATE UMI________________________________________________________#
 
 rule barcode_correction:
   input:
-    bam = 'Sample_{s}/{s}.viral.bam'
+    bam =  rules.mapping.output.bam
   output: 
-    corrected_bam = 'Sample_{s}/dedup/{s}.viral.corrected.bam'
+    bam = 'Sample_{s}/dedup/{s}.viral.corrected.bam'
   conda:
      "envs/env_umivar.yaml"
   log:
@@ -191,12 +219,12 @@ rule barcode_correction:
     barcode_correction = '%s/barcode_correction.py'%config['umiVar']
   shell:
     """
-    {params.barcode_correction} --infile {input.bam} --outfile {output.corrected_bam} > {log}
+    {params.barcode_correction} --infile {input.bam} --outfile {output.bam} > {log}
     """
 
 rule sort_by_position_after_correction:
     input: 
-        'Sample_{s}/dedup/{s}_corrected.bam'
+        rules.barcode_correction.output.bam
     output:
         corrected_sorted_bam = 'Sample_{s}/dedup/{s}_corrected_sorted.bam'
     conda: 'envs/env_samtools.yaml'
@@ -205,7 +233,7 @@ rule sort_by_position_after_correction:
 
 rule index_after_correction:
     input: 
-        corrected_sorted_bam = 'Sample_{s}/dedup/{s}_corrected_sorted.bam'
+        corrected_sorted_bam = rules.sort_by_position_after_correction.output.corrected_sorted_bam
     output:
         'Sample_{s}/dedup/{s}_corrected_sorted.bam.bai'
     conda: 'envs/env_samtools.yaml'
@@ -214,8 +242,8 @@ rule index_after_correction:
 
 rule bamclipoverlap:
     input:
-       corrected_sorted_bam = 'Sample_{s}/dedup/{s}_corrected_sorted.bam',
-       corrected_sorted_idx = 'Sample_{s}/dedup/{s}_corrected_sorted.bam.bai'
+       corrected_sorted_bam = rules.sort_by_position_after_correction.output.corrected_sorted_bam,
+       corrected_sorted_idx = rules.index_after_correction.output
     output:
        overlapped_bam = 'Sample_{s}/dedup/{s}_bamclipoverlap.bam'
     conda: 'envs/env_ngs_bits.yaml'
@@ -226,7 +254,7 @@ rule bamclipoverlap:
 
 rule sort_by_position_overlap:
     input: 
-        'Sample_{s}/dedup/{s}_bamclipoverlap.bam'
+        rules.bamclipoverlap.output
     output:
         bamclipoverlap_sorted_bam = 'Sample_{s}/dedup/{s}_bamclipoverlap_sorted.bam'
     conda: 'envs/env_samtools.yaml'
@@ -235,9 +263,9 @@ rule sort_by_position_overlap:
 
 rule index_overlap:
     input: 
-        bamclipoverlap_sorted_bam = 'Sample_{s}/dedup/{s}_bamclipoverlap_sorted.bam'
+        bamclipoverlap_sorted_bam = rules.sort_by_position_overlap.output.bamclipoverlap_sorted_bam
     output:
-        bamclipoverlap_sorted_idx = 'Sample_{s}/dedup/{s}_bamclipoverlap_sorted.bam.bai'
+        idx = 'Sample_{s}/dedup/{s}_bamclipoverlap_sorted.bam.bai'
     conda: 'envs/env_samtools.yaml'
     shell:
         "samtools index {input.bamclipoverlap_sorted_bam}"	
@@ -247,8 +275,8 @@ rule index_overlap:
 # Umivar2
 rule umivar2:
   input: 
-    bam = 'Sample_{s}/{s}.viral.bam'
-  output: 'Sample_{s}/umivar2/{s}.viral_hq.vcf'
+    bam = rules.sort_by_position_overlap.output.bamclipoverlap_sorted_bam#rules.mapping.output.bam#'Sample_{s}/{s}.viral.bam'
+  output: 'Sample_{s}/umivar2/{s}_bamclipoverlap_sorted_hq.vcf'#'Sample_{s}/umivar2/{s}.viral_hq.vcf'
   conda: 'envs/env_umivar.yaml'
   log:
       "logs/{s}_umivar2.log"
@@ -268,14 +296,14 @@ rule umivar2:
         -tbam {input.bam} \
         -b {params.target} \
         -r {params.ref} \
-        -o /mnt/users/ahgrosc1/projects/covid_umi/samples/Sample_{wildcards.s}/umivar2 \
+        -o Sample_{wildcards.s}/umivar2 \
         {params.ac} {params.af} {params.ns} {params.sb} {params.kt} 
     """
 
 # LoFreq
 rule lofreq_call:
     input:
-        bam = 'Sample_{s}/{s}.viral.bam'
+        bam = rules.sort_by_position_overlap.output.bamclipoverlap_sorted_bam
     output:
         "Sample_{s}/lofreq/{s}_lofreq.tsv"
     params:
@@ -285,28 +313,57 @@ rule lofreq_call:
         """
         lofreq call --call-indels -f {params.ref} -o {output} {input.bam}
         """
-
+rule lofreq_call_ignore:
+    input:
+      bam = rules.mapping_duplicate_samblaster.output.bam#'Sample_{s}/{s}.viral.bam'
+    output:
+        "Sample_{s}/dedup/lofreq/{s}_lofreq.tsv"
+    params:
+        ref = config['reference'] 
+    conda: 'envs/env_lofreq.yaml'
+    shell:
+        """
+        lofreq call --call-indels -f {params.ref} -o {output} {input.bam}
+        """
 # VarScan
 rule varscan:
   input:
-    bam = 'Sample_{s}/{s}.viral.bam'
+      bam = rules.sort_by_position_overlap.output.bamclipoverlap_sorted_bam
   output:
-    "Sample_{s}/varscan/{s}_varscan.tsv"
+      "Sample_{s}/varscan/{s}_varscan.tsv"
   log:
-    "logs/{s}_%s_varscan.log"%datetime.now().strftime('%H_%M_%d_%m_%Y')
-  conda: 'envs/env_samtools.yaml'
+      "logs/{s}_%s_varscan.log"%datetime.now().strftime('%H_%M_%d_%m_%Y')
+  conda: 'envs/env_varscan.yaml'
+  #conda: 'envs/env_samtools.yaml'
+  params:
+      ref = config['reference']
+  shell:
+      """
+      samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --variants - > {output}
+      """
+#previously: samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | java -jar /path/VarScan.v2.4.6.jar pileup2snp --variants - > {output}
+# VarScan
+rule varscan_ignore:
+  input:
+    bam = rules.mapping_duplicate_samblaster.output.bam
+  output:
+    "Sample_{s}/dedup/varscan/{s}_varscan.tsv"
+  log:
+    "logs/{s}_%s_varscan_ignore.log"%datetime.now().strftime('%H_%M_%d_%m_%Y')
+  conda: 'envs/env_varscan.yaml'
+  #conda: 'envs/env_samtools.yaml'
   params:
     ref = config['reference']
   shell:
     """
-    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | java -jar /mnt/share/opt/VarScan.v2.4.4/VarScan.v2.4.4.jar pileup2snp --variants - > {output}
+    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --variants - > {output}
     """
-		
+
 # Ivar
-rule variant_calling:
+rule ivar:
   input:
-    bam = 'Sample_{s}/{s}.viral.bam',
-    idx = 'Sample_{s}/{s}.viral.bam.bai',
+    bam = rules.sort_by_position_overlap.output.bamclipoverlap_sorted_bam,
+    idx = rules.index_overlap.output.idx
   output:
     vcf = 'Sample_{s}/ivar/{s}_ivar.vcf.gz'
   log:
@@ -321,17 +378,42 @@ rule variant_calling:
     """
     mkdir -p ivar
     cd Sample_{wildcards.s}/ivar
-    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} ../virus/{wildcards.s}_position_sorted.bam | ivar variants -p {wildcards.s}_ivar -q {params.q} -t {params.t} -r {params.ref}
+    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} ../../{input.bam} | ivar variants -p {wildcards.s}_ivar -q {params.q} -t {params.t} -r {params.ref}
+    python {params.ivar_variants} {wildcards.s}_ivar.tsv {wildcards.s}_ivar.vcf > {wildcards.s}.variant.counts.log
+    bgzip -c {wildcards.s}_ivar.vcf > {wildcards.s}_ivar.vcf.gz
+    """
+#    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} ../virus/{wildcards.s}_position_sorted.bam | ivar variants -p {wildcards.s}_ivar -q {params.q} -t {params.t} -r {params.ref}
+
+rule ivar_ignore:
+  input:
+    bam = rules.mapping_duplicate_samblaster.output.bam,
+    idx = rules.mapping_duplicate_samblaster.output.idx
+  output:
+    vcf = 'Sample_{s}/dedup/ivar/{s}_ivar.vcf.gz'
+  log:
+    'Sample_{s}/{s}_vs_dedup.log'
+  conda: 'envs/env_ivar.yaml'
+  params:
+    q = 20, #Minimum quality score threshold to count base (Default: 20)
+    t = 0.03, #Minimum frequency threshold(0 - 1) to call variants (Default: 0.03)
+    ref = config['reference'],
+    ivar_variants = srcdir("source/ivar_variants_to_vcf.py")
+  shell:
+    """
+    mkdir -p dedup/ivar
+    cd Sample_{wildcards.s}/dedup/ivar
+    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} ../../../{input.bam} | ivar variants -p {wildcards.s}_ivar -q {params.q} -t {params.t} -r {params.ref}
     python {params.ivar_variants} {wildcards.s}_ivar.tsv {wildcards.s}_ivar.vcf > {wildcards.s}.variant.counts.log
     bgzip -c {wildcards.s}_ivar.vcf > {wildcards.s}_ivar.vcf.gz
     """
 
+
 # QC
-rule variant_qc:
+rule ivar_variant_qc:
   input:
-    'Sample_{s}/virus/{s}.vcf.gz'
+    rules.ivar.output.vcf#'Sample_{s}/virus/{s}.vcf.gz'
   output:
-    vcf = 'Sample_{s}/virus/{s}_variant_calling.qcML'
+    vcf = 'Sample_{s}/virus/{s}_ivar.qcML'
   conda: 'envs/env_ngs_bits.yaml'
   shell:
     """
@@ -343,7 +425,9 @@ rule variant_qc:
 # Ivar
 rule consensus_ivar:
   input:
-    ivar = 'Sample_{s}/.viral..bam'
+    #ivar = 'Sample_{s}/.viral.bam'
+    ivar  = rules.mapping.output.bam
+
   output:
     fasta = 'Sample_{s}/consensus/{s}_consensus_ivar.fa'
   conda: 'envs/env_ivar.yaml'
@@ -374,9 +458,9 @@ rule consensus_umivar:
     cat {params.ref} | bcftools consensus Sample_{wildcards.s}/cfdna/calls.filt.vcf.gz > {output.fasta}
     """
 
-rule variant_table:
+rule ivar_variant_table:
   input: 
-    consensus=rules.variant_calling.output,
+    consensus=rules.ivar.output,
     vcf='Sample_{s}/ivar/{s}_ivar.vcf.gz'
   output: 'Sample_{s}/ivar/{s}.variants.txt'
   conda:'envs/env.yaml'
@@ -388,12 +472,28 @@ rule variant_table:
         | awk -v OFS='\t' '$7 = $5/$6' \
         >> {output}
     """
+
+rule ivar_variant_table_ignore:
+  input: 
+    consensus=rules.ivar_ignore.output,
+    vcf='Sample_{s}/dedup/ivar/{s}_ivar.vcf.gz'
+  output: 'Sample_{s}/dedup/ivar/{s}.variants.txt'
+  conda:'envs/env.yaml'
+  shell:
+    """
+    echo -e '#chr\tpos\tref\talt\tao\tdp\tfreq' > {output}
+    tabix -p vcf -f {input.vcf}
+    bcftools query -f '[%CHROM\t%POS\t%REF\t%ALT\t%ALT_FREQ\t%DP]\n' {input.consensus} \
+        | awk -v OFS='\t' '$7 = $5/$6' \
+        >> {output}
+    """
+
 #_______ ASSEMBLY ____________________________________________________#
 
 rule assembly:
   input:
-    r1='Sample_{s}/{s}_viral_1.fastq.gz',
-    r2='Sample_{s}/{s}_viral_2.fastq.gz'
+    r1=rules.kraken.output.out1,#'Sample_{s}/{s}_viral_1.fastq.gz',
+    r2=rules.kraken.output.out2#'Sample_{s}/{s}_viral_2.fastq.gz'
   output:
     dir = 'Sample_{s}/spades/contigs.fasta'
   threads: threads_max

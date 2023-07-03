@@ -4,7 +4,6 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - python=3.7
   - scipy
   - pybedtools
   - pysam
@@ -22,3 +21,5 @@ dependencies:
   - r-scales
   - r-crayon
   - r-pkgconfig
+  - dataclasses
+#  - python=3.7

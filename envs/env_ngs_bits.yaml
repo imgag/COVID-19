@@ -4,3 +4,4 @@ channels:
   - defaults
 dependencies:
   - ngs-bits ==2020_12
+  #==2023_03
