@@ -1,20 +1,16 @@
-- parameters used [Paper](https://academic.oup.com/bib/article/22/3/bbaa123/5868070)
+# Variant Calling
+## Methods from ["Evaluating assembly and variant calling software for strain-resolved analysis of large DNA viruses"](https://academic.oup.com/bib/article/22/3/bbaa123/5868070)
+### Variant calling Parameters
 
-
-```
-"Variant calling
-
-Quality-controlled reads were mapped against the reference genome of the HCMV strains Merlin and AD169 using BWA-MEM with a seed length of 31. HCMV Merlin and AD169 genomes were used as reference genomes, as they were the major strains in all mixtures. The resulting BAM files were deduplicated with the Picard package (http://broadinstitute.github.io/picard/) to remove possible amplification duplicates that may bias the allele frequency of identified variants. To compare the performance of different variant callers, we used LoFreq (parameter: -q 20 -Q 20 -m 20), VarScan2 (—min-avg-qual 20 —P-value 0.01), FreeBayes (—p 1 -m 20 -q 20 -F 0.01 —min-coverage 10), CLC (overall read depth ≥10, average basecall quality ≥20, forward/reverse read balance 0.1–0.9 and variant frequency ≥0.1%), BCFtools (—p 0.01 —ploidy 1 -mv -Ob) and GATK HaplotypeCaller (—min-base-quality-score 20 -ploidy 1) to identify variants. The variants from the difference between genomes detected by MUMmer were considered as positive variants. Based on this standard, precision, recall and F1-score were computed to evaluate those callers. The pairwise genome differences of 30 E. coli or 30 HIV genomes were determined by MUMmer as well. To evaluate the performance of different callers for SNP and InDel prediction, the command vcfeval in RTG-tools [60] was used to generate recall-precision curves based on the Phred scaled ‘QUAL’ score field (—squash-ploidy -f QUAL —sample ALT)."
-
-
-https://backoffice.biblio.ugent.be/download/01GY7GK7NPE15KKNYZNP8K8XYC/01GY7GQHFYX9WY4GEE0Z874QK0
+> Quality-controlled reads were mapped against the reference genome of the HCMV strains Merlin and AD169 using BWA-MEM with a seed length of 31. HCMV Merlin and AD169 genomes were used as reference genomes, as they were the major strains in all mixtures. The resulting BAM files were deduplicated with the Picard package (http://broadinstitute.github.io/picard/) to remove possible amplification duplicates that may bias the allele frequency of identified variants. To compare the performance of different variant callers, we used LoFreq (parameter: -q 20 -Q 20 -m 20), VarScan2 (—min-avg-qual 20 —P-value 0.01), FreeBayes (—p 1 -m 20 -q 20 -F 0.01 —min-coverage 10), CLC (overall read depth ≥10, average basecall quality ≥20, forward/reverse read balance 0.1–0.9 and variant frequency ≥0.1%), BCFtools (—p 0.01 —ploidy 1 -mv -Ob) and GATK HaplotypeCaller (—min-base-quality-score 20 -ploidy 1) to identify variants. The variants from the difference between genomes detected by MUMmer were considered as positive variants. Based on this standard, precision, recall and F1-score were computed to evaluate those callers. The pairwise genome differences of 30 E. coli or 30 HIV genomes were determined by MUMmer as well. To evaluate the performance of different callers for SNP and InDel prediction, the command vcfeval in RTG-tools [60] was used to generate recall-precision curves based on the Phred scaled ‘QUAL’ score field (—squash-ploidy -f QUAL —sample ALT)."
+> https://backoffice.biblio.ugent.be/download/01GY7GK7NPE15KKNYZNP8K8XYC/01GY7GQHFYX9WY4GEE0Z874QK0
 page 169
 " LoFreq v2.1.3.1 package, setting
 the strand bias threshold for reporting a variant to the maximum allowed value by using the
 option “--sb-thresh 2147483647” to allow highly strand-biased variants to be retained, to
 account for the non-random distribution of reads due to the design of the amplification panel."
-```
-- umivar parameters
+
+1. umivar parameters
 ```
 -tbam  tumor bam file
 -ac 4:
@@ -63,7 +59,7 @@ optional arguments:
   -crb CUSTOM_RSCRIPT_BINARY, --custom_rscript_binary CUSTOM_RSCRIPT_BINARY
                         Path to custom Rscript binary. [Default: 'Rscript']
 ```
-- varscan parameters
+2. varscan parameters
 ```
 samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --variants - > {output}
 varscan pileup2snp -h         
@@ -85,7 +81,7 @@ USAGE: java -jar VarScan.jar pileup2cns [pileup file] OPTIONS
         --p-value       Default p-value threshold for calling variants [99e-02]                                                          
         --variants      Report only variant (SNP/indel) positions [0] 
 ```
-- lofreq
+3. lofreq
 
 ```
 lofreq call --call-indels -f /mnt/storage2/users/ahcepev1/pipelines/COVID-19/ref/MN908947.3.fasta -o Sample_21014a009_01/lofreq/21014a009_01_lofreq.tsv Sample_21014a009_01/dedup/21014a009_01_bamclipoverlap_sorted.bam
@@ -140,7 +136,7 @@ Options:
             --verbose               Be verbose
 ```
 
-- ivar
+4. ivar
 
 ```
 params:
@@ -155,7 +151,6 @@ params:
     samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} ../../{input.bam} | ivar variants -p {wildcards.s}_ivar -q {params.q} -t {params.t} -r {params.ref}
     python {params.ivar_variants} {wildcards.s}_ivar.tsv {wildcards.s}_ivar.vcf > {wildcards.s}.variant.counts.log
     bgzip -c {wildcards.s}_ivar.vcf > {wildcards.s}_ivar.vcf.gz
-
 
 
 ivar variants
