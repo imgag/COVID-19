@@ -1,4 +1,5 @@
 # COVID-19
+![Alt text](dag.png "Pipeline")
 
 ## How to run snakefiles 
 
