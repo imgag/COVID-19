@@ -22,7 +22,8 @@ account for the non-random distribution of reads due to the design of the amplif
 >        -b {params.target} 
 >        -r {params.ref} 
 >        -o Sample_{wildcards.s}/umivar2 
->        -ac 4 -ns -1  -sb 0 -kt 
+>        -ac 4 -ns -1  -sb 0 -kt
+>        -mp 30 -bq 20
 > ```
 
 ```
@@ -47,8 +48,8 @@ optional arguments:
                         Output folder. Will be created if not existing
   -p PARAM, --param PARAM
                         Beta-binomial parameters table
-  -mq MQ, --mq MQ       Minimum mapping quality
-  -bq BQ, --bq BQ       Minimum base quality
+  -mq MQ, --mq MQ       Minimum mapping qualitydefault=30
+  -bq BQ, --bq BQ       Minimum base quality default=20
   -d DIST, --dist DIST  Minimum distance between variants
   -ac AC, --ac AC       Minimum number of reads supporting a variant
   -af AF, --af AF       Minimum fraction of reads supporting a variant
@@ -84,7 +85,7 @@ USAGE: java -jar VarScan.jar pileup2cns [pileup file] OPTIONS
         --variants      Report only variant (SNP/indel) positions [0] 
 ```
 ### lofreq
-- Description: call variants from BAM file . LoFreq (suggested paper parameter: -q 20 -Q 20 -m 20)
+- Description: call variants from BAM file . LoFreq (suggested paper parameter: -q 20 -Q 20 -m 30)
 > pipeline command:
 lofreq call --call-indels -f /mnt/storage2/users/ahcepev1/pipelines/COVID-19/ref/MN908947.3.fasta -o Sample_21014a009_01/lofreq/21014a009_01_lofreq.tsv Sample_21014a009_01/dedup/21014a009_01_bamclipoverlap_sorted.bam
 
