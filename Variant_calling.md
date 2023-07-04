@@ -1,6 +1,6 @@
 # Variant Calling
 ## Methods from ["Evaluating assembly and variant calling software for strain-resolved analysis of large DNA viruses"](https://academic.oup.com/bib/article/22/3/bbaa123/5868070)
-### Variant calling Parameters
+## Variant calling Parameters
 
 > Quality-controlled reads were mapped against the reference genome of the HCMV strains Merlin and AD169 using BWA-MEM with a seed length of 31. HCMV Merlin and AD169 genomes were used as reference genomes, as they were the major strains in all mixtures. The resulting BAM files were deduplicated with the Picard package (http://broadinstitute.github.io/picard/) to remove possible amplification duplicates that may bias the allele frequency of identified variants. To compare the performance of different variant callers, we used LoFreq (parameter: -q 20 -Q 20 -m 20), VarScan2 (—min-avg-qual 20 —P-value 0.01), FreeBayes (—p 1 -m 20 -q 20 -F 0.01 —min-coverage 10), CLC (overall read depth ≥10, average basecall quality ≥20, forward/reverse read balance 0.1–0.9 and variant frequency ≥0.1%), BCFtools (—p 0.01 —ploidy 1 -mv -Ob) and GATK HaplotypeCaller (—min-base-quality-score 20 -ploidy 1) to identify variants. The variants from the difference between genomes detected by MUMmer were considered as positive variants. Based on this standard, precision, recall and F1-score were computed to evaluate those callers. The pairwise genome differences of 30 E. coli or 30 HIV genomes were determined by MUMmer as well. To evaluate the performance of different callers for SNP and InDel prediction, the command vcfeval in RTG-tools [60] was used to generate recall-precision curves based on the Phred scaled ‘QUAL’ score field (—squash-ploidy -f QUAL —sample ALT)."
 
@@ -10,8 +10,19 @@ page 169
 the strand bias threshold for reporting a variant to the maximum allowed value by using the
 option “--sb-thresh 2147483647” to allow highly strand-biased variants to be retained, to
 account for the non-random distribution of reads due to the design of the amplification panel."
+## Variant calling tools
 
-1. umivar parameters
+### umivar
+- Description:
+> pipeline command:
+>  shell:
+    """
+    {params.umiVar} \
+        -tbam {input.bam} \
+        -b {params.target} \
+        -r {params.ref} \
+        -o Sample_{wildcards.s}/umivar2 \
+        {params.ac} {params.af} {params.ns} {params.sb} {params.kt} 
 ```
 tumor vs normal file?
 -tbam  tumor bam file
@@ -61,20 +72,15 @@ optional arguments:
   -kt, --keep_temp      Don't delete temporary directory
 
 ```
-2. varscan parameters
+### varscan parameters
 ```
 > VarScan2 (—min-avg-qual 20 —P-value 0.01)
 
+> pipeline command:
 samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --variants - > {output}
-samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --min-reads 4 --min-coverage 4 --min-avg-qual 20 --p-value 0.01 --variants - > {output}
-
-varscan pileup2snp -h         
-Warning: No p-value threshold provided, so p-values will not be calculated                                                               
-Min coverage:   8                                                                                                                        
-Min reads2:     2                                                                                                                        
-Min var freq:   0.01                                                                                                                     
-Min avg qual:   15                                                                                                                       
-P-value thresh: 0.99                                                                                                                     
+samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --min-reads2 4 --min-coverage 4 --min-avg-qual 20 --p-value 0.01 --variants - > {output}
+```
+varscan pileup2snp -h                                                                                                                         
 USAGE: java -jar VarScan.jar pileup2cns [pileup file] OPTIONS                                                                            
         pileup file - The SAMtools pileup file                                                                                           
                                                                                                                                 
@@ -87,9 +93,9 @@ USAGE: java -jar VarScan.jar pileup2cns [pileup file] OPTIONS
         --p-value       Default p-value threshold for calling variants [99e-02]                                                          
         --variants      Report only variant (SNP/indel) positions [0] 
 ```
-3. lofreq
-call variants from BAM file . LoFreq (parameter: -q 20 -Q 20 -m 20)
-pipeline parameter:
+### lofreq
+- Description: call variants from BAM file . LoFreq (parameter: -q 20 -Q 20 -m 20)
+> pipeline command:
 lofreq call --call-indels -f /mnt/storage2/users/ahcepev1/pipelines/COVID-19/ref/MN908947.3.fasta -o Sample_21014a009_01/lofreq/21014a009_01_lofreq.tsv Sample_21014a009_01/dedup/21014a009_01_bamclipoverlap_sorted.bam
 
 ```
@@ -113,40 +119,37 @@ Options:
        -C | --min-cov INT           Test only positions having at least this coverage [1]
                                     (note: without --no-default-filter default filters (incl. coverage) kick in after predictions are done)
        -d | --max-depth INT         Cap coverage at this depth [1000000]
-
 ```
 
-4. ivar
-There are two parameters that can be set for variant calling using iVar - minimum quality(Default: 20) and minimum frequency(Default: 0.03). Minimum quality is the minimum quality for a base to be used in frequency calculations at a given position. Minimum frequency is the minimum frequency required for a SNV or indel to be reported.
+### ivar
+1. ivar variants
+   - Description:
+    There are two parameters that can be set for variant calling using iVar
+      - minimum quality(Default: 20)  Minimum quality is the minimum quality for a base to be used in frequency calculations at a given position. 
+      - minimum frequency(Default: 0.03). Minimum frequency is the minimum frequency required for a SNV or indel to be reported.
+> "For Samtools mpileup mostly default parameters are used. The only non-default parameters used are do not discard anomalous read pairs (-A), disable per-base alignment quality (-B), skip bases with base quality smaller than 0 (-Q 0), and especially       the maximum per-file coverage -d 1000000. The coverage of the pool amplicons can vary more than 100x in tiled amplicon approaches. Therefore, the value of the -d parameter should be at least 5-10x greater than the Avg. Coverage (Unassembled). For consensus calling by default the minimum quality score threshold (-q 20), minimum coverage to call consensus (-m 10), and minimum frequency threshold (-t 0.7) parameter values are applied. For stricter consensus calling, e.g., a called base must make up at least 90% presence at a position, the latter parameter must be changed to -t 0.9. For further details and other parameters it is referred to the iVar manual. All by SeqSphere+" --https://www.ridom.de/u/SARS-CoV-2_Analysis_Quick_Start.html"
+- Pipeline Command:
+> samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} ../../{input.bam} | ivar variants -p {wildcards.s}_ivar -q 20 -t 0.03 -r {ref}
 
-"For Samtools mpileup mostly default parameters are used. The only non-default parameters used are do not discard anomalous read pairs (-A), disable per-base alignment quality (-B), skip bases with base quality smaller than 0 (-Q 0), and especially the maximum per-file coverage -d 1000000. The coverage of the pool amplicons can vary more than 100x in tiled amplicon approaches. Therefore, the value of the -d parameter should be at least 5-10x greater than the Avg. Coverage (Unassembled). For consensus calling by default the minimum quality score threshold (-q 20), minimum coverage to call consensus (-m 10), and minimum frequency threshold (-t 0.7) parameter values are applied. For stricter consensus calling, e.g., a called base must make up at least 90% presence at a position, the latter parameter must be changed to -t 0.9. For further details and other parameters it is referred to the iVar manual. All by SeqSphere+" --https://www.ridom.de/u/SARS-CoV-2_Analysis_Quick_Start.html
 ```
-params:
-    q = 20, #Minimum quality score threshold to count base (Default: 20)
-    t = 0.03, #Minimum frequency threshold(0 - 1) to call variants (Default: 0.03)
-    ref = config['reference'],
-    ivar_variants = srcdir("source/ivar_variants_to_vcf.py")
-  shell:
-    """
-    mkdir -p ivar
-    cd Sample_{wildcards.s}/ivar
-    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} ../../{input.bam} | ivar variants -p {wildcards.s}_ivar -q {params.q} -t {params.t} -r {params.ref}
-    python {params.ivar_variants} {wildcards.s}_ivar.tsv {wildcards.s}_ivar.vcf > {wildcards.s}.variant.counts.log
-    bgzip -c {wildcards.s}_ivar.vcf > {wildcards.s}_ivar.vcf.gz
-```
--m   4 Minimum read depth to call variants (Default: 0)
-
-ivar variants
 Usage: samtools mpileup -aa -A -d 0 -B -Q 0 --reference [<reference-fasta] <input.bam> | ivar variants -p <prefix> [-q <min-quality>] [-t <min-frequency-threshold>] [-m <minimum depth>] [-r <reference-fasta>] [-g GFF file]
-Note : samtools mpileup output must be piped into ivar variants
-
 Input Options    Description
            -q    Minimum quality score threshold to count base (Default: 20)
            -t    Minimum frequency threshold(0 - 1) to call variants (Default: 0.03)
            -m    Minimum read depth to call variants (Default: 0)
            -r    Reference file used for alignment. This is used to translate the nucleotide sequences and identify intra host single nucleotide variants
            -g    A GFF file in the GFF3 format can be supplied to specify coordinates of open reading frames (ORFs). In absence of GFF file, amino acid translation will not be done.
-
 Output Options   Description
            -p    (Required) Prefix for the output tsv variant file
+```
+
+2. ivar consensus
+- Pipeline Command:
+ >  samtools mpileup -aa -A -d 0 -Q 0 {input} | \
+        ivar consensus -t 0.9 -m 10 \
+        -p Sample_{wildcards.s}/consensus/{wildcards.s}_consensus_ivar
+```
+Options:
+-m   Minimum read depth to call variants (Default: 0)
+-t   freq_threshold
 ```
