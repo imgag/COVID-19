@@ -288,7 +288,10 @@ rule umivar2:
     af = "-af " + config['umivar']['af'] if 'af' in config['umivar'] else "",
     ns = "-ns " + config['umivar']['ns'] if 'ns' in config['umivar'] else "",
     sb = "-sb " + config['umivar']['sb'] if 'sb' in config['umivar'] else "",
-    kt = "-kt " if 'kt' in config['umivar'] else ""
+    kt = "-kt " if 'kt' in config['umivar'] else "",
+    mp = 30, #default
+    bq = 20  #default
+
 
   shell:
     """
@@ -297,7 +300,7 @@ rule umivar2:
         -b {params.target} \
         -r {params.ref} \
         -o Sample_{wildcards.s}/umivar2 \
-        {params.ac} {params.af} {params.ns} {params.sb} {params.kt} 
+        {params.ac} {params.af} {params.ns} {params.sb} {params.kt}  {params.mp}  {params.bq} 
     """
 
 # LoFreq
@@ -307,11 +310,11 @@ rule lofreq_call:
     output:
         "Sample_{s}/lofreq/{s}_lofreq.tsv"
     params:
-        ref = config['reference'] 
+        ref = config['reference']
     conda: 'envs/env_lofreq.yaml'
     shell:
         """
-        lofreq call --call-indels -f {params.ref} -o {output} {input.bam}
+        lofreq call --call-indels -f {params.ref} -o {output} {input.bam} -q 20 -Q 20 -m 30
         """
 rule lofreq_call_ignore:
     input:
@@ -323,7 +326,7 @@ rule lofreq_call_ignore:
     conda: 'envs/env_lofreq.yaml'
     shell:
         """
-        lofreq call --call-indels -f {params.ref} -o {output} {input.bam}
+        lofreq call --call-indels -f {params.ref} -o {output} {input.bam} -q 20 -Q 20 -m 30
         """
 # VarScan
 rule varscan:
@@ -336,7 +339,8 @@ rule varscan:
   conda: 'envs/env_varscan.yaml'
   #conda: 'envs/env_samtools.yaml'
   params:
-      ref = config['reference']
+      ref = config['reference'],
+
   shell:
       """
       samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --variants - > {output}
@@ -356,7 +360,7 @@ rule varscan_ignore:
     ref = config['reference']
   shell:
     """
-    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --variants - > {output}
+    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --variants --min-reads2 4 - > {output}
     """
 
 # Ivar
