@@ -13,30 +13,19 @@ account for the non-random distribution of reads due to the design of the amplif
 ## Variant calling tools
 
 ### umivar
-- Description:
-> pipeline command:
->  shell:
-    """
-    {params.umiVar} \
-        -tbam {input.bam} \
-        -b {params.target} \
-        -r {params.ref} \
-        -o Sample_{wildcards.s}/umivar2 \
-        {params.ac} {params.af} {params.ns} {params.sb} {params.kt} 
-```
-tumor vs normal file?
--tbam  tumor bam file
--ac 4:
-  -ac AC, --ac AC       Minimum number of reads supporting a variant/not same as depth of coverage, is there any depth of coverage????
--ns -1
-  -ns NUM_SITES, --num_sites NUM_SITES
-                        Number of sites to be analysed
--sb 0
-  -sb {0,1}, --strand_bias {0,1}
-                        Fisher strand bias filter. Default [0]
-  -mq MQ, --mq MQ       Minimum mapping quality
-  -bq BQ, --bq BQ       Minimum base quality
+- Description : tumor vs normal file?
 
+> pipeline command:
+> ```
+> umiVar.py 
+>        -tbam {input.bam} 
+>        -b {params.target} 
+>        -r {params.ref} 
+>        -o Sample_{wildcards.s}/umivar2 
+>        -ac 4 -ns -1  -sb 0 -kt 
+> ```
+
+```
 usage: umiVar - variant calling with unique molecular barcodes
        [-h] -tbam TBAM [-nbam NBAM] -r REF [-b BED] [-m MONITORING]
        [-o OUT_FOLDER] [-p PARAM] [-mq MQ] [-bq BQ] [-d DIST] [-ac AC]
@@ -78,7 +67,8 @@ optional arguments:
 
 > pipeline command:
 samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --variants - > {output}
-samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --min-reads2 4 --min-coverage 4 --min-avg-qual 20 --p-value 0.01 --variants - > {output}
+paper suggestion: samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --min-reads2 4 --min-coverage 4 --min-avg-qual 20 --p-value 0.01 --variants - > {output}
+to be consistent: -min-reads 4 --min-reads2 20 
 ```
 varscan pileup2snp -h                                                                                                                         
 USAGE: java -jar VarScan.jar pileup2cns [pileup file] OPTIONS                                                                            
@@ -94,10 +84,11 @@ USAGE: java -jar VarScan.jar pileup2cns [pileup file] OPTIONS
         --variants      Report only variant (SNP/indel) positions [0] 
 ```
 ### lofreq
-- Description: call variants from BAM file . LoFreq (parameter: -q 20 -Q 20 -m 20)
+- Description: call variants from BAM file . LoFreq (suggested paper parameter: -q 20 -Q 20 -m 20)
 > pipeline command:
 lofreq call --call-indels -f /mnt/storage2/users/ahcepev1/pipelines/COVID-19/ref/MN908947.3.fasta -o Sample_21014a009_01/lofreq/21014a009_01_lofreq.tsv Sample_21014a009_01/dedup/21014a009_01_bamclipoverlap_sorted.bam
 
+> add only q=20 and Q=20 C=4 -m default?
 ```
 Options:
 - Reference:
@@ -130,7 +121,7 @@ Options:
 > "For Samtools mpileup mostly default parameters are used. The only non-default parameters used are do not discard anomalous read pairs (-A), disable per-base alignment quality (-B), skip bases with base quality smaller than 0 (-Q 0), and especially       the maximum per-file coverage -d 1000000. The coverage of the pool amplicons can vary more than 100x in tiled amplicon approaches. Therefore, the value of the -d parameter should be at least 5-10x greater than the Avg. Coverage (Unassembled). For consensus calling by default the minimum quality score threshold (-q 20), minimum coverage to call consensus (-m 10), and minimum frequency threshold (-t 0.7) parameter values are applied. For stricter consensus calling, e.g., a called base must make up at least 90% presence at a position, the latter parameter must be changed to -t 0.9. For further details and other parameters it is referred to the iVar manual. All by SeqSphere+" --https://www.ridom.de/u/SARS-CoV-2_Analysis_Quick_Start.html"
 - Pipeline Command:
 > samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} ../../{input.bam} | ivar variants -p {wildcards.s}_ivar -q 20 -t 0.03 -r {ref}
-
+- add : -m 4 -q 20 -t default
 ```
 Usage: samtools mpileup -aa -A -d 0 -B -Q 0 --reference [<reference-fasta] <input.bam> | ivar variants -p <prefix> [-q <min-quality>] [-t <min-frequency-threshold>] [-m <minimum depth>] [-r <reference-fasta>] [-g GFF file]
 Input Options    Description
