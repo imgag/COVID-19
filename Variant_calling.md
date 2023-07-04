@@ -3,25 +3,28 @@
 ### Variant calling Parameters
 
 > Quality-controlled reads were mapped against the reference genome of the HCMV strains Merlin and AD169 using BWA-MEM with a seed length of 31. HCMV Merlin and AD169 genomes were used as reference genomes, as they were the major strains in all mixtures. The resulting BAM files were deduplicated with the Picard package (http://broadinstitute.github.io/picard/) to remove possible amplification duplicates that may bias the allele frequency of identified variants. To compare the performance of different variant callers, we used LoFreq (parameter: -q 20 -Q 20 -m 20), VarScan2 (—min-avg-qual 20 —P-value 0.01), FreeBayes (—p 1 -m 20 -q 20 -F 0.01 —min-coverage 10), CLC (overall read depth ≥10, average basecall quality ≥20, forward/reverse read balance 0.1–0.9 and variant frequency ≥0.1%), BCFtools (—p 0.01 —ploidy 1 -mv -Ob) and GATK HaplotypeCaller (—min-base-quality-score 20 -ploidy 1) to identify variants. The variants from the difference between genomes detected by MUMmer were considered as positive variants. Based on this standard, precision, recall and F1-score were computed to evaluate those callers. The pairwise genome differences of 30 E. coli or 30 HIV genomes were determined by MUMmer as well. To evaluate the performance of different callers for SNP and InDel prediction, the command vcfeval in RTG-tools [60] was used to generate recall-precision curves based on the Phred scaled ‘QUAL’ score field (—squash-ploidy -f QUAL —sample ALT)."
-> https://backoffice.biblio.ugent.be/download/01GY7GK7NPE15KKNYZNP8K8XYC/01GY7GQHFYX9WY4GEE0Z874QK0
+
+- https://backoffice.biblio.ugent.be/download/01GY7GK7NPE15KKNYZNP8K8XYC/01GY7GQHFYX9WY4GEE0Z874QK0
 page 169
-" LoFreq v2.1.3.1 package, setting
+> " LoFreq v2.1.3.1 package, setting
 the strand bias threshold for reporting a variant to the maximum allowed value by using the
 option “--sb-thresh 2147483647” to allow highly strand-biased variants to be retained, to
 account for the non-random distribution of reads due to the design of the amplification panel."
 
 1. umivar parameters
 ```
+tumor vs normal file?
 -tbam  tumor bam file
 -ac 4:
-  -ac AC, --ac AC       Minimum number of reads supporting a variant
-
+  -ac AC, --ac AC       Minimum number of reads supporting a variant/not same as depth of coverage, is there any depth of coverage????
 -ns -1
   -ns NUM_SITES, --num_sites NUM_SITES
                         Number of sites to be analysed
 -sb 0
   -sb {0,1}, --strand_bias {0,1}
                         Fisher strand bias filter. Default [0]
+  -mq MQ, --mq MQ       Minimum mapping quality
+  -bq BQ, --bq BQ       Minimum base quality
 
 usage: umiVar - variant calling with unique molecular barcodes
        [-h] -tbam TBAM [-nbam NBAM] -r REF [-b BED] [-m MONITORING]
@@ -56,12 +59,15 @@ optional arguments:
   -t TEMP_DIR, --temp_dir TEMP_DIR
                         Temporary directory
   -kt, --keep_temp      Don't delete temporary directory
-  -crb CUSTOM_RSCRIPT_BINARY, --custom_rscript_binary CUSTOM_RSCRIPT_BINARY
-                        Path to custom Rscript binary. [Default: 'Rscript']
+
 ```
 2. varscan parameters
 ```
+> VarScan2 (—min-avg-qual 20 —P-value 0.01)
+
 samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --variants - > {output}
+samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --min-reads 4 --min-coverage 4 --min-avg-qual 20 --p-value 0.01 --variants - > {output}
+
 varscan pileup2snp -h         
 Warning: No p-value threshold provided, so p-values will not be calculated                                                               
 Min coverage:   8                                                                                                                        
@@ -82,62 +88,38 @@ USAGE: java -jar VarScan.jar pileup2cns [pileup file] OPTIONS
         --variants      Report only variant (SNP/indel) positions [0] 
 ```
 3. lofreq
-
-```
+call variants from BAM file . LoFreq (parameter: -q 20 -Q 20 -m 20)
+pipeline parameter:
 lofreq call --call-indels -f /mnt/storage2/users/ahcepev1/pipelines/COVID-19/ref/MN908947.3.fasta -o Sample_21014a009_01/lofreq/21014a009_01_lofreq.tsv Sample_21014a009_01/dedup/21014a009_01_bamclipoverlap_sorted.bam
 
-lofreq call: call variants from BAM file
-
-Usage: lofreq call [options] in.bam
-
+```
 Options:
 - Reference:
        -f | --ref FILE              Indexed reference fasta file (gzip supported) [null]
 - Output:
        -o | --out FILE              Vcf output file [- = stdout]
-- Regions:
-       -r | --region STR            Limit calls to this region (chrom:start-end) [null]
-       -l | --bed FILE              List of positions (chr pos) or regions (BED) [null]
 - Base-call quality:
        -q | --min-bq INT            Skip any base with baseQ smaller than INT [6]
        -Q | --min-alt-bq INT        Skip alternate bases with baseQ smaller than INT [6]
-       -R | --def-alt-bq INT        Overwrite baseQs of alternate bases (that passed bq filter) with this value (-1: use median ref-bq; 0: keep) [0]
-       -j | --min-jq INT            Skip any base with joinedQ smaller than INT [0]
-       -J | --min-alt-jq INT        Skip alternate bases with joinedQ smaller than INT [0]
-       -K | --def-alt-jq INT        Overwrite joinedQs of alternate bases (that passed jq filter) with this value (-1: use median ref-bq; 0: keep) [0]
-- Base-alignment (BAQ) and indel-aligment (IDAQ) qualities:
-       -B | --no-baq                Disable use of base-alignment quality (BAQ)
-       -A | --no-idaq               Don't use IDAQ values (NOT recommended under ANY circumstances other than debugging)
-       -D | --del-baq               Delete pre-existing BAQ values, i.e. compute even if already present in BAM
-       -e | --no-ext-baq            Use 'normal' BAQ (samtools default) instead of extended BAQ (both computed on the fly if not already present in lb tag)
 - Mapping quality:
        -m | --min-mq INT            Skip reads with mapping quality smaller than INT [0]
-       -M | --max-mq INT            Cap mapping quality at INT [255]
-       -N | --no-mq                 Don't merge mapping quality in LoFreq's model
-- Indels:
-            --call-indels           Enable indel calls (note: preprocess your file to include indel alignment qualities!)
-            --only-indels           Only call indels; no SNVs
-- Source quality:
-       -s | --src-qual              Enable computation of source quality
-       -S | --ign-vcf FILE          Ignore variants in this vcf file for source quality computation. Multiple files can be given separated by commas
-       -T | --def-nm-q INT          If >= 0, then replace non-match base qualities with this default value [-1]
 - P-values:
        -a | --sig                   P-Value cutoff / significance level [0.010000]
        -b | --bonf                  Bonferroni factor. 'dynamic' (increase per actually performed test) or INT ['dynamic']
+- Indels:1
+            --call-indels           Enable indel calls (note: preprocess your file to include indel alignment qualities!)
+            --only-indels           Only call indels; no SNVs
 - Misc.:
        -C | --min-cov INT           Test only positions having at least this coverage [1]
                                     (note: without --no-default-filter default filters (incl. coverage) kick in after predictions are done)
        -d | --max-depth INT         Cap coverage at this depth [1000000]
-            --illumina-1.3          Assume the quality is Illumina-1.3-1.7/ASCII+64 encoded
-            --use-orphan            Count anomalous read pairs (i.e. where mate is not aligned properly)
-            --plp-summary-only      No variant calling. Just output pileup summary per column
-            --no-default-filter     Don't run default 'lofreq filter' automatically after calling variants
-            --force-overwrite       Overwrite any existing output
-            --verbose               Be verbose
+
 ```
 
 4. ivar
+There are two parameters that can be set for variant calling using iVar - minimum quality(Default: 20) and minimum frequency(Default: 0.03). Minimum quality is the minimum quality for a base to be used in frequency calculations at a given position. Minimum frequency is the minimum frequency required for a SNV or indel to be reported.
 
+"For Samtools mpileup mostly default parameters are used. The only non-default parameters used are do not discard anomalous read pairs (-A), disable per-base alignment quality (-B), skip bases with base quality smaller than 0 (-Q 0), and especially the maximum per-file coverage -d 1000000. The coverage of the pool amplicons can vary more than 100x in tiled amplicon approaches. Therefore, the value of the -d parameter should be at least 5-10x greater than the Avg. Coverage (Unassembled). For consensus calling by default the minimum quality score threshold (-q 20), minimum coverage to call consensus (-m 10), and minimum frequency threshold (-t 0.7) parameter values are applied. For stricter consensus calling, e.g., a called base must make up at least 90% presence at a position, the latter parameter must be changed to -t 0.9. For further details and other parameters it is referred to the iVar manual. All by SeqSphere+" --https://www.ridom.de/u/SARS-CoV-2_Analysis_Quick_Start.html
 ```
 params:
     q = 20, #Minimum quality score threshold to count base (Default: 20)
@@ -151,11 +133,11 @@ params:
     samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} ../../{input.bam} | ivar variants -p {wildcards.s}_ivar -q {params.q} -t {params.t} -r {params.ref}
     python {params.ivar_variants} {wildcards.s}_ivar.tsv {wildcards.s}_ivar.vcf > {wildcards.s}.variant.counts.log
     bgzip -c {wildcards.s}_ivar.vcf > {wildcards.s}_ivar.vcf.gz
-
+```
+-m   4 Minimum read depth to call variants (Default: 0)
 
 ivar variants
 Usage: samtools mpileup -aa -A -d 0 -B -Q 0 --reference [<reference-fasta] <input.bam> | ivar variants -p <prefix> [-q <min-quality>] [-t <min-frequency-threshold>] [-m <minimum depth>] [-r <reference-fasta>] [-g GFF file]
-
 Note : samtools mpileup output must be piped into ivar variants
 
 Input Options    Description
