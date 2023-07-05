@@ -128,7 +128,7 @@ To compare the performance of different variant callers,we used the following to
 ```
 
 ### ivar
-[https://gensoft.pasteur.fr/docs/ivar/1.0.1/manualpage.html](https://gensoft.pasteur.fr/docs/ivar/1.0.1/manualpage.htm\)
+- Description: [https://gensoft.pasteur.fr/docs/ivar/1.0.1/manualpage.html](https://gensoft.pasteur.fr/docs/ivar/1.0.1/manualpage.htm)
 1. ivar variants
    - Description:
     There are two parameters that can be set for variant calling using iVar
