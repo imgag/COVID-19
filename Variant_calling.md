@@ -1,11 +1,9 @@
 # Variant Calling
 ## Methods from Paper: ["Evaluating assembly and variant calling software for strain-resolved analysis of large DNA viruses"](https://academic.oup.com/bib/article/22/3/bbaa123/5868070)
-## Variant calling Parameters
-
 To compare the performance of different variant callers,we used the following tools: 
 - LoFreq (parameter: -q 20 -Q 20 -m 20): 
   - LoFreq separates true LFV from erroneous variant calls by using Phred-scores as probability error in a Poisson-binomial distribution. The consensus sequence of each sample was used as its own reference to call LFV, in order to avoid calling high-frequency non-reference bases due to an inadequate choice of a single reference sequence for all samples used by LoFreq to call variants, i.e. nucleotides at low allelic frequency differing from the consensus at a specific genomic position [659]" from [here](https://backoffice.biblio.ugent.be/download/01GY7GK7NPE15KKNYZNP8K8XYC/01GY7GQHFYX9WY4GEE0Z874QK0).
-  - "LoFreq v2.1.3.1 package, setting the strand bias threshold for reporting a variant to the maximum allowed value by using the option “--sb-thresh 2147483647” to allow strand-biased variants to be retained, to account for the non-random distribution of reads due to the design of the amplification panel."
+  - setting the strand bias threshold for reporting a variant to the maximum allowed value by using the option “--sb-thresh 2147483647” to allow strand-biased variants to be retained, to account for the non-random distribution of reads due to the design of the amplification panel."
 - VarScan2 (--min-avg-qual 20 --p-value 0.01)
 - FreeBayes (--p 1 -m 20 -q 20 -f 0.01 --min-coverage 10)
 - BCFtools (--p 0.01 —ploidy 1 -mv -Ob)
@@ -29,9 +27,9 @@ To compare the performance of different variant callers,we used the following to
             -ac 4
             -ns -1
             -sb 0
-            -kt
             -mp 30 
             -bq 20
+            -kt
 ```
 - Usage
 ```
@@ -130,7 +128,7 @@ To compare the performance of different variant callers,we used the following to
 ```
 
 ### ivar
-
+[https://gensoft.pasteur.fr/docs/ivar/1.0.1/manualpage.html](https://gensoft.pasteur.fr/docs/ivar/1.0.1/manualpage.htm\)
 1. ivar variants
    - Description:
     There are two parameters that can be set for variant calling using iVar
