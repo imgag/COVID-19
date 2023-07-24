@@ -71,12 +71,15 @@ To compare the performance of different variant callers,we used the following to
 ### varscan
 
 - Description: [https://varscan.sourceforge.net/](https://varscan.sourceforge.net/)
-- Parameters: to be consistent: -min-reads 4 --min-reads2 20 
+- Parameters: to be consistent: -min-reads2 4 --min-reads2 20 
 
 ``` 
         VarScan2 (—min-avg-qual 20 —P-value 0.01)
         samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --variants - > {output}
         paper suggestion: samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --min-reads2 4 --min-coverage 4 --min-avg-qual 20 --p-value 0.01 --variants - > {output}
+
+#           --min-var-freq  Minimum variant allele frequency threshold [0.01]                                                                
+#                --p-value       Default p-value threshold for calling variants [99e-02]       
 ```
 - Usage
 ```
@@ -137,7 +140,7 @@ To compare the performance of different variant callers,we used the following to
 > "For Samtools mpileup, the only non-default parameters used are do not discard anomalous read pairs (-A), disable per-base alignment quality (-B), skip bases with base quality smaller than 0 (-Q 0), and especially the maximum per-file coverage -d 1000000. The coverage of the pool amplicons can vary more than 100x in tiled amplicon approaches. Therefore, the value of the -d parameter should be at least 5-10x greater than the Avg. Coverage (Unassembled). For consensus calling by default the minimum quality score threshold (-q 20), minimum coverage to call consensus (-m 10), and minimum frequency threshold (-t 0.7) parameter values are applied. For stricter consensus calling, e.g., a called base must make up at least 90% presence at a position, the latter parameter must be changed to -t 0.9. [https://www.ridom.de/u/SARS-CoV-2_Analysis_Quick_Start.html](https://www.ridom.de/u/SARS-CoV-2_Analysis_Quick_Start.html)
 - Parameters:
 ```
-        samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} ../../{input.bam} | ivar variants -p {wildcards.s}_ivar -q 20 -t 0.03 -r {ref} -m 4 -q 20 -t default
+        samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} ../../{input.bam} | ivar variants -p {wildcards.s}_ivar -q 20 -t 0 -r {ref} -m 4 
 ```
 - Usage
 ```
@@ -162,7 +165,23 @@ To compare the performance of different variant callers,we used the following to
 ```
 - Usage:
 ```
-        Options:
-        -m   Minimum read depth to call variants (Default: 0)
-        -t   freq_threshold
+        ivar consensus
+        Usage: samtools mpileup -A -d 300000 -Q 0 -F 0 <input.bam> | ivar consensus -p <prefix>
+        Note : samtools mpileup output must be piped into ivar consensus
+        Input Options    Description
+                   -q    Minimum quality score threshold to count base (Default: 20)
+                   -t    Minimum frequency threshold(0 - 1) to call consensus. (Default: 0)
+                         Frequently used thresholds | Description
+                         ---------------------------|------------
+                                                  0 | Majority or most common base
+                                                0.2 | Bases that make up atleast 20% of the depth at a position
+                                                0.5 | Strict or bases that make up atleast 50% of the depth at a position
+                                                0.9 | Strict or bases that make up atleast 90% of the depth at a position
+                                                  1 | Identical or bases that make up 100% of the depth at a position. Will have highest ambiguities
+                   -m    Minimum depth to call consensus(Default: 1)
+                   -k    If '-k' flag is added, regions with depth less than minimum depth will not be added to the consensus sequence. Using '-k' will override any option specified using -n
+                   -n    (N/-) Character to print in regions with less than minimum coverage(Default: -)
+
+
+
 ```
