@@ -133,6 +133,36 @@ To compare the performance of different variant callers,we used the following to
                 --variants      Report only variant (SNP/indel) positions [0] 
 ```
 
+This command calls SNPs from a pileup file based on user-defined parameters:
+
+	USAGE: java -jar VarScan.jar pileup2snp [pileup file] OPTIONS
+        pileup file - The SAMtools pileup file
+
+        OPTIONS:
+        --min-coverage  Minimum read depth at a position to make a call [10]
+        --min-reads2    Minimum supporting reads at a position to call variants [2]
+        --min-avg-qual  Minimum base quality at a position to count a read [15]
+        --min-var-freq  Minimum variant allele frequency threshold [0.01]
+        --p-value       Default p-value threshold for calling variants [99e-02]
+		
+	OUTPUT
+	Tab-delimited SNP calls with the following columns:
+	Chrom		chromosome name
+	Position	position (1-based)
+	Ref		reference allele at this position
+	Var		variant allele at this position
+	Reads1		reads supporting reference allele
+	Reads2		reads supporting variant allele
+	VarFreq		frequency of variant allele by read count
+	Strands1	strands on which reference allele was observed
+	Strands2	strands on which variant allele was observed
+	Qual1		average base quality of reference-supporting read bases
+	Qual2		average base quality of variant-supporting read bases
+	Pvalue		Significance of variant read count vs. expected baseline error
+
+
+
+
 ### ivar
 - Description: [https://gensoft.pasteur.fr/docs/ivar/1.0.1/manualpage.html](https://gensoft.pasteur.fr/docs/ivar/1.0.1/manualpage.html)
 1. ivar variants
