@@ -288,11 +288,9 @@ rule umivar2:
     af = "-af " + config['umivar']['af'] if 'af' in config['umivar'] else "",
     ns = "-ns " + config['umivar']['ns'] if 'ns' in config['umivar'] else "",
     sb = "-sb " + config['umivar']['sb'] if 'sb' in config['umivar'] else "",
-    kt = "-kt " if 'kt' in config['umivar'] else "",
+    kt = "-kt ",# if 'kt' in config['umivar'] else "",
     mp = 30, #default
     bq = 20  #default
-
-
   shell:
     """
     {params.umiVar} \
@@ -302,6 +300,7 @@ rule umivar2:
         -o Sample_{wildcards.s}/umivar2 \
         {params.ac} {params.af} {params.ns} {params.sb} {params.kt}  {params.mp}  {params.bq} 
     """
+#umivar:  ac: "4"  ns: "-1" sb: "0" mp "30" bp "20"
 
 # LoFreq
 rule lofreq_call:
@@ -314,7 +313,7 @@ rule lofreq_call:
     conda: 'envs/env_lofreq.yaml'
     shell:
         """
-        lofreq call --call-indels -f {params.ref} -o {output} {input.bam} -q 20 -Q 20 -m 30
+        lofreq call --call-indels -f {params.ref} -o {output} {input.bam} -q 20 -Q 20 -m 30 -C 3
         """
 rule lofreq_call_ignore:
     input:
@@ -326,7 +325,7 @@ rule lofreq_call_ignore:
     conda: 'envs/env_lofreq.yaml'
     shell:
         """
-        lofreq call --call-indels -f {params.ref} -o {output} {input.bam} -q 20 -Q 20 -m 30
+        lofreq call --call-indels -f {params.ref} -o {output} {input.bam} -q 20 -Q 20 -m 30 -C 3
         """
 # VarScan
 rule varscan:
@@ -343,9 +342,11 @@ rule varscan:
 
   shell:
       """
-      samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --variants - > {output}
+      samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --min-reads2 3 --min-coverage 3 --min-avg-qual 20  --variants - > {output}
       """
 #previously: samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | java -jar /path/VarScan.v2.4.6.jar pileup2snp --variants - > {output}
+#--p-value 0.01
+
 # VarScan
 rule varscan_ignore:
   input:
@@ -360,8 +361,9 @@ rule varscan_ignore:
     ref = config['reference']
   shell:
     """
-    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --variants --min-reads2 4 - > {output}
+    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --min-reads2 3 --min-coverage 3 --min-avg-qual 20 --variants - > {output}
     """
+#--p-value 0.01
 
 # Ivar
 rule ivar:
@@ -375,7 +377,8 @@ rule ivar:
   conda: 'envs/env_ivar.yaml'
   params:
     q = 20, #Minimum quality score threshold to count base (Default: 20)
-    t = 0.03, #Minimum frequency threshold(0 - 1) to call variants (Default: 0.03)
+    t = 0,#t=0.03, #Minimum frequency threshold(0 - 1) to call variants (Default: 0.03)
+    m = 3,
     ref = config['reference'],
     ivar_variants = srcdir("source/ivar_variants_to_vcf.py")
   shell:
@@ -386,7 +389,7 @@ rule ivar:
     python {params.ivar_variants} {wildcards.s}_ivar.tsv {wildcards.s}_ivar.vcf > {wildcards.s}.variant.counts.log
     bgzip -c {wildcards.s}_ivar.vcf > {wildcards.s}_ivar.vcf.gz
     """
-#    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} ../virus/{wildcards.s}_position_sorted.bam | ivar variants -p {wildcards.s}_ivar -q {params.q} -t {params.t} -r {params.ref}
+#    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} ../virus/{wildcards.s}_position_sorted.bam | ivar variants -p {wildcards.s}_ivar -q {params.q} -t {params.t} -m {params.m} -r {params.ref}
 
 rule ivar_ignore:
   input:
@@ -399,14 +402,15 @@ rule ivar_ignore:
   conda: 'envs/env_ivar.yaml'
   params:
     q = 20, #Minimum quality score threshold to count base (Default: 20)
-    t = 0.03, #Minimum frequency threshold(0 - 1) to call variants (Default: 0.03)
+    t = 0,#t=0.03, Minimum frequency threshold(0 - 1) to call variants (Default: 0.03)
     ref = config['reference'],
+    m = 3,
     ivar_variants = srcdir("source/ivar_variants_to_vcf.py")
   shell:
     """
     mkdir -p dedup/ivar
     cd Sample_{wildcards.s}/dedup/ivar
-    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} ../../../{input.bam} | ivar variants -p {wildcards.s}_ivar -q {params.q} -t {params.t} -r {params.ref}
+    samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} ../../../{input.bam} | ivar variants -p {wildcards.s}_ivar -q {params.q} -t {params.t} -m {params.m} -r {params.ref}
     python {params.ivar_variants} {wildcards.s}_ivar.tsv {wildcards.s}_ivar.vcf > {wildcards.s}.variant.counts.log
     bgzip -c {wildcards.s}_ivar.vcf > {wildcards.s}_ivar.vcf.gz
     """
