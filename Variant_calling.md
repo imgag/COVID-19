@@ -27,7 +27,7 @@ To compare the performance of different variant callers,we used the following to
             -ac 4
             -ns -1
             -sb 0
-            -mq 30 
+            -mp 30 
             -bq 20
             -kt
 ```
@@ -68,33 +68,7 @@ To compare the performance of different variant callers,we used the following to
           -kt, --keep_temp      Don't delete temporary directory
 
 ```
-### varscan
 
-- Description: [https://varscan.sourceforge.net/](https://varscan.sourceforge.net/)
-- Parameters: to be consistent: -min-reads2 4 --min-reads2 20 
-
-``` 
-        VarScan2 (—min-avg-qual 20 —P-value 0.01)
-        samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --variants - > {output}
-        paper suggestion: samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --min-reads2 4 --min-coverage 4 --min-avg-qual 20 --p-value 0.01 --variants - > {output}
-
-#           --min-var-freq  Minimum variant allele frequency threshold [0.01]                                                                
-#                --p-value       Default p-value threshold for calling variants [99e-02]       
-```
-- Usage
-```
-        varscan pileup2snp -h                                                                                                                         
-        USAGE: java -jar VarScan.jar pileup2cns [pileup file] OPTIONS                                                                            
-                pileup file - The SAMtools pileup file                                                                                 
-                OPTIONS:                                                                                                                         
-                --min-coverage  Minimum read depth at a position to make a call [8]                                                              
-                --min-reads2    Minimum supporting reads at a position to call variants [2]                                                      
-                --min-avg-qual  Minimum base quality at a position to count a read [15]                                                          
-                --min-var-freq  Minimum variant allele frequency threshold [0.01]                                                                
-                --min-freq-for-hom      Minimum frequency to call homozygote [0.75]                                                              
-                --p-value       Default p-value threshold for calling variants [99e-02]                                                          
-                --variants      Report only variant (SNP/indel) positions [0] 
-```
 
 ### lofreq
 
@@ -128,6 +102,35 @@ To compare the performance of different variant callers,we used the following to
                -C | --min-cov INT           Test only positions having at least this coverage [1]
                                             (note: without --no-default-filter default filters (incl. coverage) kick in after predictions are done)
                -d | --max-depth INT         Cap coverage at this depth [1000000]
+```
+
+
+### varscan
+
+- Description: [https://varscan.sourceforge.net/](https://varscan.sourceforge.net/)
+- Parameters: to be consistent: -min-reads2 4 --min-reads2 20 
+
+``` 
+        VarScan2 (—min-avg-qual 20 —P-value 0.01)
+        samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --variants - > {output}
+        paper suggestion: samtools mpileup -aa -A -d 0 -B -Q 0 --reference {params.ref} {input.bam} | varscan pileup2snp --min-reads2 4 --min-coverage 4 --min-avg-qual 20 --p-value 0.01 --variants - > {output}
+
+#           --min-var-freq  Minimum variant allele frequency threshold [0.01]                                                                
+#                --p-value       Default p-value threshold for calling variants [99e-02]       
+```
+- Usage
+```
+        varscan pileup2snp -h                                                                                                                         
+        USAGE: java -jar VarScan.jar pileup2cns [pileup file] OPTIONS                                                                            
+                pileup file - The SAMtools pileup file                                                                                 
+                OPTIONS:                                                                                                                         
+                --min-coverage  Minimum read depth at a position to make a call [8]                                                              
+                --min-reads2    Minimum supporting reads at a position to call variants [2]                                                      
+                --min-avg-qual  Minimum base quality at a position to count a read [15]                                                          
+                --min-var-freq  Minimum variant allele frequency threshold [0.01]                                                                
+                --min-freq-for-hom      Minimum frequency to call homozygote [0.75]                                                              
+                --p-value       Default p-value threshold for calling variants [99e-02]                                                          
+                --variants      Report only variant (SNP/indel) positions [0] 
 ```
 
 ### ivar
