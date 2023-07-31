@@ -79,6 +79,6 @@ umiVar: 'python3 /mnt/storage2/users/ahgrosc1/dev/umivar2' #umivar directory
 threads: 8 # number of threads
 
 umivar:
-  ac: "4"
+  ac: "3"
   ns: "-1"
   sb: "0"

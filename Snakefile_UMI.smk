@@ -289,8 +289,8 @@ rule umivar2:
     ns = "-ns " + config['umivar']['ns'] if 'ns' in config['umivar'] else "",
     sb = "-sb " + config['umivar']['sb'] if 'sb' in config['umivar'] else "",
     kt = "-kt ",# if 'kt' in config['umivar'] else "",
-    mp = 30, #default
-    bq = 20  #default
+    mq = "-mq 30", #default
+    bq = "-bq 20"  #default
   shell:
     """
     {params.umiVar} \
@@ -298,9 +298,9 @@ rule umivar2:
         -b {params.target} \
         -r {params.ref} \
         -o Sample_{wildcards.s}/umivar2 \
-        {params.ac} {params.af} {params.ns} {params.sb} {params.kt}  {params.mp}  {params.bq} 
+        {params.ac} {params.af} {params.ns} {params.sb} {params.kt}  {params.mq}  {params.bq} 
     """
-#umivar:  ac: "4"  ns: "-1" sb: "0" mp "30" bp "20"
+#umivar:  ac: "4"  ns: "-1" sb: "0" mq "30" bq "20"
 
 # LoFreq
 rule lofreq_call:
