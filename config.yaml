@@ -74,8 +74,8 @@ adapter1: 'AGATCGGAAGAGCACACGTCTGAACTCCAGTCA' # Adapter read 1
 adapter2: 'AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT' # Adapter read 2 
 krakendb: '/mnt/storage2/users/ahcepev1/pipelines/COVID-19/kraken2_human' # extracted kraken path
 #umiVar: 'python3 /mnt/users/ahgrosc1/dev/umivar2'
-umiVar: 'python3 /mnt/storage2/users/ahgrosc1/dev/umivar2' #umivar directory
-
+#umiVar: 'python3 /mnt/storage2/users/ahgrosc1/dev/umivar2' #umivar directory
+umiVar:  'python3 /mnt/storage2/users/ahcepev1/tools/umiVar2-2023_06/umiVar.py'
 threads: 8 # number of threads
 
 umivar:
